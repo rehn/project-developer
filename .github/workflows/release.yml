@@ -75,8 +75,12 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          # Registry cache, not type=gha: the GHA cache is scoped per ref, and every release is a
+          # new tag ref, so a gha cache written by v0.4.0 is never readable by v0.5.0 (0 hits, and
+          # ~3.5 min spent exporting it each run). A registry tag is shared by all releases, so the
+          # slow QEMU-emulated arm64 apt/install layers are reused when nothing in them changed.
+          cache-from: type=registry,ref=${{ env.IMAGE }}:buildcache
+          cache-to: type=registry,ref=${{ env.IMAGE }}:buildcache,mode=max
 
       # ---- Helm chart (OCI on GHCR) ----
       - uses: azure/setup-helm@v4
