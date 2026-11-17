@@ -61,5 +61,5 @@ export default function TermView({ target, cont, onExit }: { target: string; con
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [target, cont]);
 
-  return <div ref={host} className="xterm-host" />;
+  return <div className="xterm-host"><div ref={host} className="xterm-inner" /></div>;
 }
