@@ -1,4 +1,4 @@
-:root { --hdr:60px; --bg:#fff; --fg:#1b1f24; --muted:#6a737d; --card:#f6f8fa; --border:#d8dee4; --accent:#2f6feb; --green:#2da44e; --red:#cf222e; --screen:#0d1117; }
+:root { --hdr:60px; --tabs:40px; --top:calc(var(--hdr) + var(--tabs)); --bg:#fff; --fg:#1b1f24; --muted:#6a737d; --card:#f6f8fa; --border:#d8dee4; --accent:#2f6feb; --green:#2da44e; --red:#cf222e; --screen:#0d1117; }
 @media (prefers-color-scheme: dark) { :root { --bg:#0d1117; --fg:#e6edf3; --muted:#8b949e; --card:#161b22; --border:#30363d; --accent:#4c8dff; --screen:#010409; } }
 * { box-sizing: border-box; }
 body { margin:0; background:var(--bg); color:var(--fg); font:14px/1.5 system-ui,-apple-system,sans-serif; }
@@ -13,7 +13,7 @@ button.danger { color:var(--red); border-color:var(--red); }
 button.link { border:0; background:none; color:var(--accent); padding:4px 0; }
 .app { min-height:100vh; display:flex; flex-direction:column; }
 .shell { display:flex; flex:1; }
-aside { width:220px; padding:16px; border-right:1px solid var(--border); display:flex; flex-direction:column; gap:10px; position:sticky; top:var(--hdr); height:calc(100vh - var(--hdr)); align-self:flex-start; }
+aside { width:220px; padding:16px; border-right:1px solid var(--border); display:flex; flex-direction:column; gap:10px; position:sticky; top:var(--top); height:calc(100vh - var(--top)); align-self:flex-start; }
 aside nav { display:flex; flex-direction:column; gap:2px; }
 aside nav a { padding:6px 10px; border-radius:6px; color:inherit; text-decoration:none; }
 aside nav a.active { background:var(--card); font-weight:600; }
@@ -29,7 +29,7 @@ aside nav a.active { background:var(--card); font-weight:600; }
 .bars { display:flex; align-items:flex-end; gap:3px; height:140px; margin:12px 0; }
 .bar { flex:1; height:100%; display:flex; flex-direction:column; justify-content:flex-end; } .bar .in { background:var(--accent); } .bar .out { background:var(--green); }
 table { width:100%; border-collapse:collapse; } th,td { text-align:left; padding:6px 8px; border-top:1px solid var(--border); } th { color:var(--muted); font-weight:500; border:0; }
-.term { display:flex; flex-direction:column; height:calc(100vh - var(--hdr) - 48px); gap:10px; }
+.term { display:flex; flex-direction:column; height:calc(100vh - var(--top) - 48px); gap:10px; }
 .screen { flex:1; overflow:auto; background:var(--screen); color:#e6edf3; border-radius:8px; padding:12px; font:13px/1.5 ui-monospace,monospace; }
 .ln { white-space:pre-wrap; word-break:break-word; margin-bottom:6px; }
 .ln.user { color:#79c0ff; } .ln.tool { color:#d2a8ff; } .ln.result { color:#56d364; } .ln.error { color:#ff7b72; } .ln.info { color:#8b949e; }
@@ -39,7 +39,7 @@ table { width:100%; border-collapse:collapse; } th,td { text-align:left; padding
 .topbar { position:sticky; top:0; z-index:10; height:var(--hdr); display:flex; align-items:center; justify-content:space-between; gap:16px; padding:0 16px; background:var(--bg); border-bottom:1px solid var(--border); }
 .gauges { display:flex; gap:20px; align-items:center; min-width:0; flex-wrap:wrap; flex:1; justify-content:center; }
 .gauge { width:150px; font-size:12px; } .gauge .track { margin:3px 0 2px; height:6px; } .small { font-size:11px; }
-@media (max-width:700px) { :root { --hdr:0px; } .topbar { height:auto; padding:8px 16px; position:static; flex-wrap:wrap; } .gauges { justify-content:flex-start; } }
+@media (max-width:700px) { :root { --hdr:0px; --tabs:0px; } .ptabs { height:auto; position:static; } .topbar { height:auto; padding:8px 16px; position:static; flex-wrap:wrap; } .gauges { justify-content:flex-start; } }
 /* The terminal is absolutely positioned inside a box whose size comes only from the layout, so
    xterm's own size can never feed back into it (that caused the page to grow on every refit). */
 .xterm-host { flex:1; min-height:0; position:relative; background:#010409; border-radius:8px; overflow:hidden; }
@@ -47,7 +47,7 @@ table { width:100%; border-collapse:collapse; } th,td { text-align:left; padding
 
 /* project view: terminal (middle) + repo info panel (right); the left menu is the app sidebar */
 main:has(.project-view) { max-width:none; }
-.project-view { display:grid; grid-template-columns:minmax(0,1fr) 320px; grid-template-rows:minmax(0,1fr); gap:16px; height:calc(100vh - var(--hdr) - 48px); }
+.project-view { display:grid; grid-template-columns:minmax(0,1fr) 320px; grid-template-rows:minmax(0,1fr); gap:16px; height:calc(100vh - var(--top) - 48px); }
 .project-view > * { min-height:0; min-width:0; }
 .project-view > .term { height:100%; }
 .panel { overflow:auto; background:var(--card); border:1px solid var(--border); border-radius:8px; padding:14px; min-width:0; }
@@ -61,3 +61,19 @@ main:has(.project-view) { max-width:none; }
 .run-dot.in_progress { animation:pulse 1.2s ease-in-out infinite; }
 @keyframes pulse { 50% { opacity:.3; } }
 @media (max-width:1100px) { .project-view { grid-template-columns:1fr; grid-template-rows:none; height:auto; } .project-view > .term { height:70vh; } }
+
+/* project tabs under the header */
+.ptabs { position:sticky; top:var(--hdr); z-index:9; height:var(--tabs); display:flex; align-items:flex-end; gap:8px; padding:0 16px; background:var(--bg); border-bottom:1px solid var(--border); }
+.ptabs-scroll { display:flex; align-items:flex-end; gap:2px; overflow-x:auto; min-width:0; flex:1; scrollbar-width:thin; align-self:stretch; }
+.ptabs-scroll > .muted { align-self:center; }
+.ptab { display:flex; align-items:center; flex-shrink:0; border:1px solid transparent; border-bottom:0; border-radius:6px 6px 0 0; margin-bottom:-1px; color:var(--muted); }
+.ptab:hover { background:var(--card); color:var(--fg); }
+.ptab.active { background:var(--bg); border-color:var(--border); color:var(--fg); font-weight:600; box-shadow:inset 0 2px 0 var(--accent); }
+.ptab button { border:0; background:none; color:inherit; border-radius:0; }
+.ptab-name { padding:7px 4px 7px 12px; white-space:nowrap; max-width:220px; overflow:hidden; text-overflow:ellipsis; }
+.ptab-x { padding:2px 8px 2px 4px; opacity:0; font-size:15px; line-height:1; }
+.ptab:hover .ptab-x, .ptab.active .ptab-x, .ptab-x:focus-visible { opacity:.6; } .ptab-x:hover { opacity:1; color:var(--red); }
+@media (hover:none) { .ptab-x { opacity:.6; } }
+.ptabs-menu { position:relative; align-self:center; flex-shrink:0; } .ptabs-menu > button { padding:3px 10px; font-size:12px; }
+.ptabs-pop { position:absolute; right:0; top:calc(100% + 4px); z-index:20; min-width:180px; max-height:60vh; overflow:auto; display:flex; flex-direction:column; background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:4px; box-shadow:0 6px 20px rgba(0,0,0,.18); }
+.ptabs-pop button { border:0; text-align:left; background:none; padding:6px 10px; } .ptabs-pop button:hover { background:var(--card); }
