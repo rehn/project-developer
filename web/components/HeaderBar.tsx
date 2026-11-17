@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { api } from "@/lib/api";
+import Logo from "@/components/Logo";
 
 function resetIn(iso: string) {
   const ms = Date.parse(iso) - Date.now();
@@ -39,6 +40,7 @@ export default function HeaderBar({ user }: { user: string }) {
 
   return (
     <header className="topbar">
+      <h1 className="brand"><Logo size={28} /> Project Developer</h1>
       <div className="gauges">
         {!l && <span className="muted small">Loading usage…</span>}
         {l?.error && <span className="muted small" title={l.error}>Plan usage unavailable — {l.error}</span>}

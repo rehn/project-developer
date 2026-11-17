@@ -4,7 +4,6 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { api } from "@/lib/api";
 import HeaderBar from "@/components/HeaderBar";
-import Logo from "@/components/Logo";
 import { ProjectProvider, useProjects } from "@/lib/ProjectContext";
 
 const NAV = [
@@ -20,7 +19,6 @@ function Shell({ user, children }: { user: string; children: React.ReactNode }) 
       <HeaderBar user={user} />
       <div className="shell">
         <aside>
-          <h1 className="brand"><Logo /> Project Developer</h1>
           <select value={selected?.id ?? ""} onChange={(e) => select(Number(e.target.value))} disabled={!projects.length}>
             {!projects.length && <option>No projects yet</option>}
             {projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
