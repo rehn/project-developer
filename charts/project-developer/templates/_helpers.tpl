@@ -36,6 +36,7 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 {{- $scheme := ternary "https" "http" (gt (len .Values.ingress.tls) 0) -}}
 {{- $o := list -}}
 {{- if .Values.ingress.enabled }}{{ range .Values.ingress.hosts }}{{ $o = append $o (printf "%s://%s" $scheme .host) }}{{ end }}{{ end -}}
+{{- if .Values.httpRoute.enabled }}{{ range .Values.httpRoute.hostnames }}{{ $o = append $o (printf "%s://%s" $.Values.httpRoute.scheme .) }}{{ end }}{{ end -}}
 {{- range .Values.config.allowedOrigins }}{{ $o = append $o . }}{{ end -}}
 {{- join "," $o -}}
 {{- end }}
