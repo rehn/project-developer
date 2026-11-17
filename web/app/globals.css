@@ -3,7 +3,7 @@
 * { box-sizing: border-box; }
 body { margin:0; background:var(--bg); color:var(--fg); font:14px/1.5 system-ui,-apple-system,sans-serif; }
 h1,h2,h3 { margin:0 0 .6em; } h1{font-size:16px} h2{font-size:20px} h3{font-size:15px}
-.brand { display:flex; align-items:center; gap:8px; }
+.brand { display:flex; align-items:center; gap:10px; margin:0; font-size:17px; white-space:nowrap; flex-shrink:0; }
 a { color:var(--accent); } code { font-family:ui-monospace,monospace; font-size:12px; }
 input,select,textarea,button { font:inherit; color:inherit; background:var(--bg); border:1px solid var(--border); border-radius:6px; padding:6px 10px; }
 textarea { resize:vertical; font-family:ui-monospace,monospace; }
@@ -37,9 +37,9 @@ table { width:100%; border-collapse:collapse; } th,td { text-align:left; padding
 .track { height:8px; border-radius:4px; background:var(--border); overflow:hidden; margin:8px 0 2px; }
 .fill { height:100%; background:var(--accent); transition:width .3s; } .fill.warn { background:#d29922; } .fill.hot { background:var(--red); }
 .topbar { position:sticky; top:0; z-index:10; height:var(--hdr); display:flex; align-items:center; justify-content:space-between; gap:16px; padding:0 16px; background:var(--bg); border-bottom:1px solid var(--border); }
-.gauges { display:flex; gap:20px; align-items:center; min-width:0; flex-wrap:wrap; }
+.gauges { display:flex; gap:20px; align-items:center; min-width:0; flex-wrap:wrap; flex:1; justify-content:center; }
 .gauge { width:150px; font-size:12px; } .gauge .track { margin:3px 0 2px; height:6px; } .small { font-size:11px; }
-@media (max-width:700px) { :root { --hdr:0px; } .topbar { height:auto; padding:8px 16px; position:static; } }
+@media (max-width:700px) { :root { --hdr:0px; } .topbar { height:auto; padding:8px 16px; position:static; flex-wrap:wrap; } .gauges { justify-content:flex-start; } }
 /* The terminal is absolutely positioned inside a box whose size comes only from the layout, so
    xterm's own size can never feed back into it (that caused the page to grow on every refit). */
 .xterm-host { flex:1; min-height:0; position:relative; background:#010409; border-radius:8px; overflow:hidden; }
@@ -56,4 +56,8 @@ main:has(.project-view) { max-width:none; }
 .kv { display:flex; justify-content:space-between; gap:8px; align-items:center; margin-bottom:4px; }
 .tag.warn { color:#d29922; border-color:#d29922; }
 .list.tight li { padding:6px 0; } .list.tight { margin:0; }
+.run { display:flex; gap:8px; align-items:flex-start; }
+.run-dot { width:8px; height:8px; border-radius:50%; margin-top:7px; flex-shrink:0; background:#d29922; }
+.run-dot.in_progress { animation:pulse 1.2s ease-in-out infinite; }
+@keyframes pulse { 50% { opacity:.3; } }
 @media (max-width:1100px) { .project-view { grid-template-columns:1fr; grid-template-rows:none; height:auto; } .project-view > .term { height:70vh; } }
