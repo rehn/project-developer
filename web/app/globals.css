@@ -80,3 +80,10 @@ main:has(.project-view) { max-width:none; }
 .small-btn { font-size:12px; padding:2px 8px; flex-shrink:0; align-self:center; } .small-btn.on { border-color:var(--accent); color:var(--accent); }
 .tagform { display:flex; flex-direction:column; gap:6px; margin-top:10px; } .tagform input { flex:1; min-width:0; font-family:ui-monospace,monospace; }
 .tagform .row { flex-wrap:nowrap; } .tagform .row + .row { flex-wrap:wrap; gap:4px; }
+/* image attach in the terminal */
+.term-attach { position:absolute; top:8px; right:14px; z-index:3; display:flex; padding:5px; border-radius:6px; background:rgba(22,27,34,.85); border-color:#30363d; color:#8b949e; opacity:.7; }
+.term-attach:hover { opacity:1; color:#e6edf3; }
+.xterm-host.dragging { outline:2px dashed #4c8dff; outline-offset:-4px; }
+.term-drop { position:absolute; inset:0; z-index:4; display:grid; place-items:center; background:rgba(1,4,9,.75); color:#e6edf3; font-size:15px; pointer-events:none; }
+.term-note { position:absolute; left:50%; bottom:12px; transform:translateX(-50%); z-index:4; max-width:calc(100% - 32px); padding:6px 12px; border-radius:6px; background:#161b22; border:1px solid #30363d; color:#e6edf3; font-size:12px; }
+.term-note.err { border-color:#cf222e; color:#ff7b72; }
