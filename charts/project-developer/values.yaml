@@ -49,6 +49,20 @@ ingress:
       paths: [{ path: /, pathType: Prefix }]
   tls: []                # [{ secretName: project-developer-tls, hosts: [project-developer.example.com] }]
 
+# Gateway API alternative to Ingress (requires the Gateway API CRDs and a Gateway).
+httpRoute:
+  enabled: false
+  annotations: {}
+  parentRefs: []         # required when enabled, e.g. [{ name: my-gateway, namespace: gateways, sectionName: https }]
+  hostnames: []          # e.g. [project-developer.example.com]
+  scheme: https          # how browsers reach the hostnames; used to build ALLOWED_ORIGINS
+  matches:
+    - path: { type: PathPrefix, value: / }
+  # Optional (Gateway API v1.1+). The terminal is a long-lived WebSocket, so if your gateway
+  # applies a request timeout, disable it for this route. Idle timeouts for WebSockets are
+  # implementation specific (e.g. Envoy Gateway: a ClientTrafficPolicy / BackendTrafficPolicy).
+  timeouts: {}           # e.g. { request: 0s }
+
 serviceAccount:
   create: true
   annotations: {}

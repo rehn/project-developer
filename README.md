@@ -66,6 +66,15 @@ Example `my-values.yaml`:
       git: { authorName: "Your Name", authorEmail: "you@example.com" }
     # imagePullSecrets: [{ name: dockerhub-pull }]   # only if the Docker Hub repo is private
 
+- **Gateway API:** instead of `ingress`, set `httpRoute.enabled=true` with the Gateway to attach to (`httpRoute.parentRefs` is required) and your `httpRoute.hostnames`:
+
+      httpRoute:
+        enabled: true
+        parentRefs: [{ name: my-gateway, namespace: gateways, sectionName: https }]
+        hostnames: [project-developer.example.com]
+        # timeouts: { request: 0s }   # if your gateway times out long-lived requests
+
+  The terminal is a long-lived WebSocket, so make sure your gateway doesn't cut idle connections too early (implementation specific, e.g. an Envoy Gateway `ClientTrafficPolicy`/`BackendTrafficPolicy`).
 - **Storage:** a PVC (default 20Gi, `ReadWriteOnce`) is mounted at `/data` and holds everything that must be kept: the database and its encryption key, cloned repos, and Claude's login/history/usage logs. Use `persistence.existingClaim` to bring your own, or add `persistence.annotations: {helm.sh/resource-policy: keep}` so the data survives `helm uninstall`.
 - **One replica only:** state is SQLite on the volume plus live terminal sessions in memory.
 - **From a checkout** (no registry): `helm install project-developer ./charts/project-developer -f my-values.yaml`.
