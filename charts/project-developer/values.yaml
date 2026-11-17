@@ -1,0 +1,72 @@
+# The app keeps state in SQLite on disk and holds live terminal sessions in memory,
+# so it always runs as a single replica (not configurable).
+
+image:
+  repository: docker.io/YOUR_DOCKERHUB_USER/project-developer   # the release workflow sets this in the packaged chart
+  tag: ""            # defaults to the chart appVersion
+  pullPolicy: IfNotPresent
+imagePullSecrets: []  # e.g. [{ name: dockerhub-pull }] if the image repo is private
+
+nameOverride: ""
+fullnameOverride: ""
+
+# --- Storage -------------------------------------------------------------------
+# Everything that must survive restarts lives under /data on this volume:
+# the SQLite database + encryption key, cloned repos, and HOME (/data/home), which
+# holds Claude's login, conversation history and usage logs.
+persistence:
+  enabled: true
+  existingClaim: ""      # use a PVC you already created instead of creating one
+  storageClass: ""       # "" = cluster default, "-" = disable dynamic provisioning
+  accessModes: [ReadWriteOnce]
+  size: 20Gi
+  annotations: {}        # e.g. helm.sh/resource-policy: keep  (keep data on uninstall)
+
+# --- App config ----------------------------------------------------------------
+config:
+  cookieSecure: true     # set false only if you serve plain http (no TLS at the ingress)
+  trustProxy: true       # use X-Forwarded-For for login throttling (behind an ingress)
+  allowedOrigins: []     # extra browser origins; the ingress hosts are added automatically
+  git:                   # identity for commits Claude makes in the pod
+    authorName: ""
+    authorEmail: ""
+extraEnv: []             # e.g. [{ name: CLAUDE_CODE_OAUTH_TOKEN, valueFrom: { secretKeyRef: {...} } }]
+extraEnvFrom: []
+
+service:
+  type: ClusterIP
+  port: 80
+
+ingress:
+  enabled: false
+  className: ""
+  annotations:
+    # ingress-nginx: keep long-lived terminal WebSockets open
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+  hosts:
+    - host: project-developer.example.com
+      paths: [{ path: /, pathType: Prefix }]
+  tls: []                # [{ secretName: project-developer-tls, hosts: [project-developer.example.com] }]
+
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+
+resources:
+  requests: { cpu: 250m, memory: 512Mi }
+  limits: { memory: 4Gi }
+
+podAnnotations: {}
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  runAsGroup: 1000
+  fsGroup: 1000          # makes the volume writable by the app user
+securityContext:
+  allowPrivilegeEscalation: false
+  capabilities: { drop: [ALL] }
+nodeSelector: {}
+tolerations: []
+affinity: {}

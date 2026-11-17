@@ -1,0 +1,219 @@
+package main
+
+import (
+	"encoding/json"
+	"net/http"
+	"os"
+	"os/exec"
+	"strconv"
+	"sync"
+
+	"github.com/creack/pty"
+	"github.com/gorilla/websocket"
+)
+
+// Interactive Claude sessions: one PTY per project (plus one "login" session).
+// Sessions outlive page reloads; reconnecting replays recent output.
+
+const scrollback = 512 * 1024
+
+type client struct {
+	ws *websocket.Conn
+	mu sync.Mutex
+}
+
+func (c *client) write(typ int, b []byte) { c.mu.Lock(); c.ws.WriteMessage(typ, b); c.mu.Unlock() }
+
+type session struct {
+	mu      sync.Mutex
+	ptmx    *os.File
+	cmd     *exec.Cmd
+	buf     []byte
+	clients map[*client]bool
+	exited  bool
+}
+
+var (
+	sessions   = map[string]*session{}
+	sessionsMu sync.Mutex
+	upgrader   = websocket.Upgrader{ReadBufferSize: 4096, WriteBufferSize: 4096, CheckOrigin: allowedOrigin}
+)
+
+func (s *session) broadcast(typ int, b []byte) {
+	s.mu.Lock()
+	cs := make([]*client, 0, len(s.clients))
+	for c := range s.clients {
+		cs = append(cs, c)
+	}
+	s.mu.Unlock()
+	for _, c := range cs {
+		c.write(typ, b)
+	}
+}
+
+func startPTY(key, dir string, args []string, cols, rows uint16) (*session, error) {
+	bin, ok := findClaude()
+	if !ok {
+		return nil, &httpErr{500, "Claude Code CLI not found. Install it (https://claude.com/claude-code) or set CLAUDE_BIN."}
+	}
+	cmd := exec.Command(bin, args...)
+	cmd.Dir = dir
+	cmd.Env = append(os.Environ(), "TERM=xterm-256color", "COLORTERM=truecolor")
+	if tok := githubToken(); tok != "" {
+		// Lets `gh` and `git push` inside the session use the token saved in Settings.
+		cmd.Env = append(cmd.Env, "GH_TOKEN="+tok, "GITHUB_TOKEN="+tok,
+			"GIT_CONFIG_COUNT=1", "GIT_CONFIG_KEY_0=credential.https://github.com.helper",
+			"GIT_CONFIG_VALUE_0=!gh auth git-credential")
+	}
+	ptmx, err := pty.StartWithSize(cmd, &pty.Winsize{Cols: cols, Rows: rows})
+	if err != nil {
+		return nil, err
+	}
+	s := &session{ptmx: ptmx, cmd: cmd, clients: map[*client]bool{}}
+	go func() {
+		chunk := make([]byte, 32*1024)
+		for {
+			n, err := ptmx.Read(chunk)
+			if n > 0 {
+				d := append([]byte(nil), chunk[:n]...)
+				s.mu.Lock()
+				s.buf = append(s.buf, d...)
+				if len(s.buf) > scrollback {
+					s.buf = s.buf[len(s.buf)-scrollback:]
+				}
+				s.mu.Unlock()
+				s.broadcast(websocket.BinaryMessage, d)
+			}
+			if err != nil {
+				break
+			}
+		}
+		code := 0
+		if err := cmd.Wait(); err != nil {
+			code = -1
+			if ee, ok := err.(*exec.ExitError); ok {
+				code = ee.ExitCode()
+			}
+		}
+		ptmx.Close()
+		s.mu.Lock()
+		s.exited = true
+		s.mu.Unlock()
+		msg, _ := json.Marshal(map[string]any{"type": "exit", "code": code})
+		s.broadcast(websocket.TextMessage, msg)
+		sessionsMu.Lock()
+		if sessions[key] == s {
+			delete(sessions, key)
+		}
+		sessionsMu.Unlock()
+	}()
+	return s, nil
+}
+
+func sessionTarget(r *http.Request) (key, dir string, args []string, err error) {
+	p := r.URL.Query().Get("project")
+	if p == "login" {
+		home, _ := os.UserHomeDir()
+		return "login", home, []string{"auth", "login"}, nil
+	}
+	proj, err := getProject(p)
+	if err != nil {
+		return
+	}
+	if r.URL.Query().Get("continue") == "1" {
+		args = []string{"--continue"}
+	}
+	return "p" + p, proj.Dir, args, nil
+}
+
+func handleTerminalWS(w http.ResponseWriter, r *http.Request) {
+	key, dir, args, err := sessionTarget(r)
+	if err != nil {
+		fail(w, err)
+		return
+	}
+	u32 := func(k string, def uint16) uint16 {
+		if n, err := strconv.Atoi(r.URL.Query().Get(k)); err == nil && n > 0 && n < 1000 {
+			return uint16(n)
+		}
+		return def
+	}
+	cols, rows := u32("cols", 100), u32("rows", 30)
+
+	sessionsMu.Lock()
+	s := sessions[key]
+	if s == nil {
+		s, err = startPTY(key, dir, args, cols, rows)
+		if err != nil {
+			sessionsMu.Unlock()
+			fail(w, err)
+			return
+		}
+		sessions[key] = s
+	}
+	sessionsMu.Unlock()
+
+	ws, err := upgrader.Upgrade(w, r, nil)
+	if err != nil {
+		return
+	}
+	c := &client{ws: ws}
+	s.mu.Lock()
+	replay := append([]byte(nil), s.buf...)
+	s.clients[c] = true
+	s.mu.Unlock()
+	pty.Setsize(s.ptmx, &pty.Winsize{Cols: cols, Rows: rows})
+	if len(replay) > 0 {
+		c.write(websocket.BinaryMessage, replay)
+	}
+	defer func() {
+		s.mu.Lock()
+		delete(s.clients, c)
+		s.mu.Unlock()
+		ws.Close()
+	}()
+	for {
+		typ, data, err := ws.ReadMessage()
+		if err != nil {
+			return
+		}
+		if typ == websocket.BinaryMessage {
+			s.ptmx.Write(data) // keystrokes
+		} else {
+			var m struct {
+				Type       string
+				Cols, Rows uint16
+			}
+			if json.Unmarshal(data, &m) == nil && m.Type == "resize" && m.Cols > 0 && m.Rows > 0 {
+				pty.Setsize(s.ptmx, &pty.Winsize{Cols: m.Cols, Rows: m.Rows})
+			}
+		}
+	}
+}
+
+// DELETE /api/terminal?project=… ends the session (used for "Restart").
+func handleTerminalKill(w http.ResponseWriter, r *http.Request) {
+	key, _, _, err := sessionTarget(r)
+	if err != nil {
+		fail(w, err)
+		return
+	}
+	sessionsMu.Lock()
+	s := sessions[key]
+	sessionsMu.Unlock()
+	if s != nil {
+		s.cmd.Process.Kill()
+	}
+	writeJSON(w, map[string]bool{"ok": true})
+}
+
+// GET /api/terminal/sessions lists live sessions so the UI can show which projects are running.
+func handleTerminalList(w http.ResponseWriter, r *http.Request) {
+	sessionsMu.Lock()
+	defer sessionsMu.Unlock()
+	keys := []string{}
+	for k := range sessions {
+		keys = append(keys, k)
+	}
+	writeJSON(w, keys)
+}

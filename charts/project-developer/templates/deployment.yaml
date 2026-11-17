@@ -1,0 +1,75 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "pd.fullname" . }}
+  labels: {{- include "pd.labels" . | nindent 4 }}
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate   # ReadWriteOnce volume + SQLite: the old pod must stop first
+  selector:
+    matchLabels: {{- include "pd.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels: {{- include "pd.selectorLabels" . | nindent 8 }}
+      {{- with .Values.podAnnotations }}
+      annotations: {{- toYaml . | nindent 8 }}
+      {{- end }}
+    spec:
+      serviceAccountName: {{ include "pd.serviceAccountName" . }}
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets: {{- toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext: {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: app
+          image: "{{ .Values.image.repository }}:{{ default .Chart.AppVersion .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          securityContext: {{- toYaml .Values.securityContext | nindent 12 }}
+          ports:
+            - { name: http, containerPort: 8080 }
+          env:
+            - { name: COOKIE_SECURE, value: {{ .Values.config.cookieSecure | quote }} }
+            - { name: TRUST_PROXY, value: {{ .Values.config.trustProxy | quote }} }
+            {{- with (include "pd.allowedOrigins" .) }}
+            - { name: ALLOWED_ORIGINS, value: {{ . | quote }} }
+            {{- end }}
+            {{- with .Values.config.git.authorName }}
+            - { name: GIT_AUTHOR_NAME, value: {{ . | quote }} }
+            - { name: GIT_COMMITTER_NAME, value: {{ . | quote }} }
+            {{- end }}
+            {{- with .Values.config.git.authorEmail }}
+            - { name: GIT_AUTHOR_EMAIL, value: {{ . | quote }} }
+            - { name: GIT_COMMITTER_EMAIL, value: {{ . | quote }} }
+            {{- end }}
+            {{- with .Values.extraEnv }}{{ toYaml . | nindent 12 }}{{ end }}
+          {{- with .Values.extraEnvFrom }}
+          envFrom: {{- toYaml . | nindent 12 }}
+          {{- end }}
+          volumeMounts:
+            - { name: data, mountPath: /data }
+          readinessProbe:
+            httpGet: { path: /healthz, port: http }
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: { path: /healthz, port: http }
+            periodSeconds: 20
+            failureThreshold: 6
+          resources: {{- toYaml .Values.resources | nindent 12 }}
+      volumes:
+        - name: data
+          {{- if .Values.persistence.enabled }}
+          persistentVolumeClaim:
+            claimName: {{ include "pd.claimName" . }}
+          {{- else }}
+          emptyDir: {}   # NOT persistent: login, database and checkouts are lost on restart
+          {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector: {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity: {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations: {{- toYaml . | nindent 8 }}
+      {{- end }}

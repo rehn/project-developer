@@ -4,6 +4,8 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"os"
+	"path/filepath"
 	"strings"
 )
 
@@ -56,15 +58,57 @@ func main() {
 	priv.HandleFunc("GET /api/projects/{id}/status", handleStatus)
 	priv.HandleFunc("GET /api/pulls", handlePulls)
 	priv.HandleFunc("GET /api/usage", handleUsage)
-	priv.HandleFunc("POST /api/claude/run", handleClaudeRun)
+	priv.HandleFunc("GET /api/usage/limits", handleLimits)
+	priv.HandleFunc("GET /api/claude/auth", handleClaudeAuth)
+	priv.HandleFunc("GET /api/terminal", handleTerminalWS)
+	priv.HandleFunc("DELETE /api/terminal", handleTerminalKill)
+	priv.HandleFunc("GET /api/terminal/sessions", handleTerminalList)
 
 	root := http.NewServeMux()
+	root.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
+		if err := db.Ping(); err != nil {
+			writeErr(w, 503, "db unavailable")
+			return
+		}
+		writeJSON(w, map[string]bool{"ok": true})
+	})
 	root.Handle("/api/auth/password", requireAuth(priv))
 	root.Handle("/api/auth/", pub)
 	root.Handle("/api/", requireAuth(priv))
+	if dir := staticDir(); dir != "" {
+		root.Handle("/", staticHandler(dir))
+		log.Printf("serving UI from %s", dir)
+	}
 
 	// Localhost-only by default: this app can run Claude with write access to your machine.
 	addr := env("ADDR", "127.0.0.1:3001")
 	log.Printf("project-developer API on http://%s", addr)
 	log.Fatal(http.ListenAndServe(addr, csrf(root)))
 }
+
+// staticDir returns the exported Next.js UI directory, if present (Docker/production).
+func staticDir() string {
+	d := env("STATIC_DIR", "../web/out")
+	if st, err := os.Stat(filepath.Join(d, "index.html")); err == nil && !st.IsDir() {
+		return d
+	}
+	return ""
+}
+
+func staticHandler(dir string) http.Handler {
+	fs := http.FileServer(http.Dir(dir))
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Exported pages live at <route>/index.html; unknown routes fall back to the app shell.
+		clean := filepath.Join(dir, filepath.Clean("/"+r.URL.Path))
+		if st, err := os.Stat(clean); err != nil || (st.IsDir() && !fileExists(filepath.Join(clean, "index.html"))) {
+			http.ServeFile(w, r, filepath.Join(dir, "index.html"))
+			return
+		}
+		if strings.HasPrefix(r.URL.Path, "/_next/static/") {
+			w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
+		}
+		fs.ServeHTTP(w, r)
+	})
+}
+
+func fileExists(p string) bool { st, err := os.Stat(p); return err == nil && !st.IsDir() }

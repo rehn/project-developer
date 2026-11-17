@@ -5,6 +5,7 @@ import { api, fmt } from "@/lib/api";
 type T = { input: number; output: number; cacheWrite: number; cacheRead: number; messages: number };
 const sum = (t: T) => t.input + t.output + t.cacheWrite + t.cacheRead;
 
+
 export default function Usage() {
   const [u, setU] = useState<any>(null);
   const [error, setError] = useState("");
