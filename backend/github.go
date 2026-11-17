@@ -1,0 +1,90 @@
+package main
+
+import (
+	"bytes"
+	"context"
+	"encoding/base64"
+	"encoding/json"
+	"fmt"
+	"io"
+	"net/http"
+	"os"
+	"os/exec"
+	"regexp"
+	"strings"
+	"time"
+)
+
+var repoRe = regexp.MustCompile(`(?i)github\.com[/:]([^/\s]+)/([^/\s]+?)(?:\.git)?/?$`)
+
+func parseRepoURL(u string) (owner, repo string, ok bool) {
+	m := repoRe.FindStringSubmatch(u)
+	if m == nil {
+		return
+	}
+	return m[1], m[2], true
+}
+
+type httpErr struct {
+	status int
+	msg    string
+}
+
+func (e *httpErr) Error() string { return e.msg }
+
+var ghClient = &http.Client{Timeout: 20 * time.Second}
+
+func ghRequest(method, path, token string, out any) error {
+	req, _ := http.NewRequest(method, "https://api.github.com"+path, nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Set("Accept", "application/vnd.github+json")
+	req.Header.Set("X-GitHub-Api-Version", "2022-11-28")
+	req.Header.Set("User-Agent", "project-developer")
+	res, err := ghClient.Do(req)
+	if err != nil {
+		return &httpErr{502, "GitHub unreachable: " + err.Error()}
+	}
+	defer res.Body.Close()
+	if res.StatusCode >= 300 {
+		b, _ := io.ReadAll(io.LimitReader(res.Body, 200))
+		st := res.StatusCode
+		if st == 401 {
+			st = 400
+		}
+		return &httpErr{st, fmt.Sprintf("GitHub: %d %s", res.StatusCode, b)}
+	}
+	return json.NewDecoder(res.Body).Decode(out)
+}
+
+func gh(path string, out any) error {
+	t := githubToken()
+	if t == "" {
+		return &httpErr{400, "No GitHub token set. Add one in Settings."}
+	}
+	return ghRequest("GET", path, t, out)
+}
+
+// runGit passes the token via GIT_CONFIG_* env (scoped to github.com), so it never
+// appears in argv, the remote URL, or .git/config.
+func runGit(ctx context.Context, dir string, args ...string) (string, error) {
+	cmd := exec.CommandContext(ctx, "git", args...)
+	cmd.Dir = dir
+	cmd.Env = append(os.Environ(), "GIT_TERMINAL_PROMPT=0")
+	tok := githubToken()
+	if tok != "" {
+		b64 := base64.StdEncoding.EncodeToString([]byte("x-access-token:" + tok))
+		cmd.Env = append(cmd.Env, "GIT_CONFIG_COUNT=1",
+			"GIT_CONFIG_KEY_0=http.https://github.com/.extraheader",
+			"GIT_CONFIG_VALUE_0=Authorization: Basic "+b64)
+	}
+	var out, errb bytes.Buffer
+	cmd.Stdout, cmd.Stderr = &out, &errb
+	if err := cmd.Run(); err != nil {
+		msg := strings.TrimSpace(errb.String())
+		if len(msg) > 400 {
+			msg = msg[:400]
+		}
+		return "", &httpErr{400, "git failed: " + msg}
+	}
+	return out.String(), nil
+}
