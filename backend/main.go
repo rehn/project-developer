@@ -66,6 +66,7 @@ func main() {
 	priv.HandleFunc("GET /api/terminal", handleTerminalWS)
 	priv.HandleFunc("DELETE /api/terminal", handleTerminalKill)
 	priv.HandleFunc("GET /api/terminal/sessions", handleTerminalList)
+	priv.HandleFunc("POST /api/uploads", handleUpload)
 
 	root := http.NewServeMux()
 	root.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {

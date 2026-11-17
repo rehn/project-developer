@@ -44,6 +44,8 @@ ingress:
     # ingress-nginx: keep long-lived terminal WebSockets open
     nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
     nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+    # allow images pasted into the terminal (backend limit is 20 MB)
+    nginx.ingress.kubernetes.io/proxy-body-size: "25m"
   hosts:
     - host: project-developer.example.com
       paths: [{ path: /, pathType: Prefix }]
