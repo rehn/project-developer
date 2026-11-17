@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
 import { api } from "@/lib/api";
 import Logo from "@/components/Logo";
 
@@ -25,6 +26,7 @@ function Gauge({ label, pct, detail }: { label: string; pct: number; detail: str
 
 export default function HeaderBar({ user }: { user: string }) {
   const router = useRouter();
+  const path = usePathname();
   const [l, setL] = useState<any>(null);
   useEffect(() => {
     const load = () => api("/usage/limits").then(setL).catch((e) => setL({ error: e.message }));
@@ -40,7 +42,7 @@ export default function HeaderBar({ user }: { user: string }) {
 
   return (
     <header className="topbar">
-      <h1 className="brand"><Logo size={28} /> Project Developer</h1>
+      <h1 className="brand"><Link href="/terminal"><Logo size={28} /> Project Developer</Link></h1>
       <div className="gauges">
         {!l && <span className="muted small">Loading usage…</span>}
         {l?.error && <span className="muted small" title={l.error}>Plan usage unavailable — {l.error}</span>}
@@ -49,6 +51,10 @@ export default function HeaderBar({ user }: { user: string }) {
         {x && <Gauge label="Extra usage" pct={x.utilization} detail={`${money(x.used)} / ${money(x.monthlyLimit)}`} />}
       </div>
       <div className="row">
+        <Link href="/settings" className={`hdr-link ${path.startsWith("/settings") ? "active" : ""}`} title="Settings">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" /></svg>
+          Settings
+        </Link>
         <span className="muted">{user}</span>
         <button onClick={async () => { await api("/auth/logout", { method: "POST", body: {} }); router.replace("/login"); }}>Log out</button>
       </div>

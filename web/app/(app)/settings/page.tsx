@@ -24,7 +24,7 @@ export default function Settings() {
       {error && <div className="error">{error}</div>}
       <div className="card">
         <h3>GitHub access token</h3>
-        <p className="muted">Used to clone repos and list pull requests. A fine-grained token with Contents + Pull requests (read) works; classic needs <code>repo</code>. Stored encrypted.</p>
+        <p className="muted">Used to clone repos, show repository info, merge pull requests and create tags. A fine-grained token needs Contents and Pull requests (read and write) plus Actions (read); classic needs <code>repo</code>. Stored encrypted.</p>
         <p>Status: {s?.githubTokenSet ? <b>set ({s.githubTokenHint})</b> : <span className="muted">not set</span>}</p>
         <form className="row" onSubmit={(e) => { e.preventDefault(); act(async () => { const r = await api("/settings/github-token", { method: "PUT", body: { token } }); setToken(""); return token ? `Saved — authenticated as ${r.login}` : "Token removed"; }); }}>
           <input style={{ flex: 1 }} type="password" autoComplete="off" placeholder="ghp_… / github_pat_…" value={token} onChange={(e) => setToken(e.target.value)} />

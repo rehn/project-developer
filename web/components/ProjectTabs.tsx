@@ -1,11 +1,18 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
 import { useProjects } from "@/lib/ProjectContext";
 
-/** One tab per project under the header. Tabs can be hidden (×) and brought back from the "hidden" menu. */
+/** One tab per project under the header. Tabs can be hidden (×) and brought back from the "hidden" menu;
+ *  "+" opens the page for adding and removing projects. */
 export default function ProjectTabs() {
-  const { projects, selected, select, hidden, hide, unhide } = useProjects();
+  const { projects, selected, select: pick, hidden, hide, unhide } = useProjects();
+  const router = useRouter();
+  const path = usePathname();
+  // A project lives in the terminal view, so picking one from another page goes there.
+  const select = (id: number) => { pick(id); if (!path.startsWith("/terminal")) router.push("/terminal"); };
+  const onTerminal = path.startsWith("/terminal");
   const [open, setOpen] = useState(false);
   const menu = useRef<HTMLDivElement>(null);
 
@@ -26,7 +33,7 @@ export default function ProjectTabs() {
         {!projects.length && <span className="muted small">No projects yet — <Link href="/projects">add one</Link></span>}
         {!!projects.length && !visible.length && <span className="muted small">All projects are hidden</span>}
         {visible.map((p) => {
-          const active = p.id === selected?.id;
+          const active = onTerminal && p.id === selected?.id;
           return (
             <div key={p.id} className={`ptab ${active ? "active" : ""}`}>
               <button role="tab" aria-selected={active} className="ptab-name" onClick={() => select(p.id)} title={p.repoUrl}>{p.name}</button>
@@ -34,6 +41,7 @@ export default function ProjectTabs() {
             </div>
           );
         })}
+        <Link href="/projects" className={`ptab-add ${path.startsWith("/projects") ? "active" : ""}`} title="Add or remove projects" aria-label="Add or remove projects">+</Link>
       </div>
       {hiddenList.length > 0 && (
         <div className="ptabs-menu" ref={menu}>
