@@ -17,7 +17,7 @@ First visit creates your account. Then: Settings → GitHub token → Projects �
 
 ## Config (env, backend)
 `ADDR` (127.0.0.1:3001), `DATA_DIR` (./data), `CLAUDE_BIN` (claude), `CLAUDE_CONFIG_DIR`,
-`ALLOWED_ORIGINS`, `COOKIE_SECURE=true` (behind HTTPS), `TRUST_PROXY=true` (behind an ingress). Frontend: `BACKEND_URL`.
+`GITHUB_API_URL` (GitHub Enterprise), `ALLOWED_ORIGINS`, `COOKIE_SECURE=true` (behind HTTPS), `TRUST_PROXY=true` (behind an ingress). Frontend: `BACKEND_URL`.
 
 ## Notes
 - Usage page: plan limits (5-hour / weekly %) come live from Anthropic via your Claude Code login (undocumented endpoint, read-only, token never leaves the backend). Token breakdowns are read from local logs in `~/.claude/projects`, so they cover this machine only.

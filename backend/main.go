@@ -56,6 +56,7 @@ func main() {
 	priv.HandleFunc("DELETE /api/projects/{id}", handleDeleteProject)
 	priv.HandleFunc("POST /api/projects/{id}/pull", handlePull)
 	priv.HandleFunc("GET /api/projects/{id}/status", handleStatus)
+	priv.HandleFunc("GET /api/projects/{id}/info", handleProjectInfo)
 	priv.HandleFunc("GET /api/pulls", handlePulls)
 	priv.HandleFunc("GET /api/usage", handleUsage)
 	priv.HandleFunc("GET /api/usage/limits", handleLimits)

@@ -40,3 +40,15 @@ table { width:100%; border-collapse:collapse; } th,td { text-align:left; padding
 .gauge { width:150px; font-size:12px; } .gauge .track { margin:3px 0 2px; height:6px; } .small { font-size:11px; }
 @media (max-width:700px) { :root { --hdr:0px; } .topbar { height:auto; padding:8px 16px; position:static; } }
 .xterm-host { flex:1; min-height:0; background:#010409; border-radius:8px; padding:8px; overflow:hidden; }
+
+/* project view: terminal (middle) + repo info panel (right); the left menu is the app sidebar */
+main:has(.project-view) { max-width:none; }
+.project-view { display:grid; grid-template-columns:minmax(0,1fr) 320px; gap:16px; height:calc(100vh - var(--hdr) - 48px); }
+.project-view > .term { height:100%; min-width:0; }
+.panel { overflow:auto; background:var(--card); border:1px solid var(--border); border-radius:8px; padding:14px; min-width:0; }
+.panel section { padding:10px 0; border-top:1px solid var(--border); } .panel section:first-of-type { border-top:0; padding-top:0; }
+.panel h3 { margin:0; } .panel h4 { margin:0 0 6px; font-size:12px; text-transform:uppercase; letter-spacing:.04em; color:var(--muted); }
+.kv { display:flex; justify-content:space-between; gap:8px; align-items:center; margin-bottom:4px; }
+.tag.warn { color:#d29922; border-color:#d29922; }
+.list.tight li { padding:6px 0; } .list.tight { margin:0; }
+@media (max-width:1100px) { .project-view { grid-template-columns:1fr; height:auto; } .project-view > .term { height:70vh; } }
