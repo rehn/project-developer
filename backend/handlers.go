@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"net"
@@ -38,6 +39,12 @@ func readJSON(w http.ResponseWriter, r *http.Request, v any) bool {
 	return true
 }
 func clientIP(r *http.Request) string {
+	// Behind an ingress every request shares the proxy's address; opt in to trust X-Forwarded-For.
+	if env("TRUST_PROXY", "") == "true" {
+		if xf := r.Header.Get("X-Forwarded-For"); xf != "" {
+			return strings.TrimSpace(strings.Split(xf, ",")[0])
+		}
+	}
 	h, _, err := net.SplitHostPort(r.RemoteAddr)
 	if err != nil {
 		return r.RemoteAddr
@@ -312,4 +319,8 @@ func handlePulls(w http.ResponseWriter, r *http.Request) {
 	}
 	wg.Wait()
 	writeJSON(w, out)
+}
+
+func contextTimeout(r *http.Request, d time.Duration) (context.Context, context.CancelFunc) {
+	return context.WithTimeout(r.Context(), d)
 }

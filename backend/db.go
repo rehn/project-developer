@@ -33,6 +33,9 @@ func initDB() error {
 	if err != nil {
 		return err
 	}
+	if h := os.Getenv("HOME"); h != "" { // e.g. HOME=/data/home so Claude's login and logs persist on the volume
+		os.MkdirAll(h, 0o755)
+	}
 	projectsDir = filepath.Join(dataDir, "projects")
 	if err := os.MkdirAll(projectsDir, 0o755); err != nil {
 		return err
