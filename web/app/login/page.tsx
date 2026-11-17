@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { api } from "@/lib/api";
+import Logo from "@/components/Logo";
 
 export default function Login() {
   const router = useRouter();
@@ -25,7 +26,7 @@ export default function Login() {
 
   return (
     <form className="card login" onSubmit={submit}>
-      <h1>Project Developer</h1>
+      <h1 className="brand"><Logo size={28} /> Project Developer</h1>
       <p className="muted">{setup ? "First run — create your account." : "Sign in to continue."}</p>
       <input placeholder="Username" autoComplete="username" value={username} onChange={(e) => setUsername(e.target.value)} autoFocus />
       <input type="password" placeholder={setup ? "Password (min 8 chars)" : "Password"} autoComplete={setup ? "new-password" : "current-password"}

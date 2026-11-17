@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -261,7 +262,42 @@ func handleStatus(w http.ResponseWriter, r *http.Request) {
 			commits = append(commits, map[string]string{"hash": f[0], "subject": f[1], "author": f[2], "when": f[3]})
 		}
 	}
-	writeJSON(w, map[string]any{"branch": strings.TrimSpace(branch), "changes": changes, "commits": commits})
+	res := map[string]any{"branch": strings.TrimSpace(branch), "changes": changes, "commits": commits}
+
+	// Check GitHub for new commits without touching the working tree. Fetches are
+	// throttled per project so frequent status polling doesn't hammer the remote.
+	if fetchDue(p.ID) {
+		fctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+		if _, err := runGit(fctx, p.Dir, "fetch", "--quiet", "--prune"); err != nil {
+			res["fetchError"] = err.Error()
+		}
+		cancel()
+	}
+	if counts, err := runGit(ctx, p.Dir, "rev-list", "--left-right", "--count", "HEAD...@{upstream}"); err == nil {
+		if f := strings.Fields(counts); len(f) == 2 {
+			res["ahead"], _ = strconv.Atoi(f[0])
+			res["behind"], _ = strconv.Atoi(f[1])
+		}
+	}
+	writeJSON(w, res)
+}
+
+const fetchInterval = 60 * time.Second
+
+var (
+	fetchMu   sync.Mutex
+	lastFetch = map[int64]time.Time{}
+)
+
+// fetchDue reports whether the project's remote should be fetched now, and if so records the attempt.
+func fetchDue(id int64) bool {
+	fetchMu.Lock()
+	defer fetchMu.Unlock()
+	if time.Since(lastFetch[id]) < fetchInterval {
+		return false
+	}
+	lastFetch[id] = time.Now()
+	return true
 }
 
 // ---- open pull requests ----

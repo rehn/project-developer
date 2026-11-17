@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import { useProjects } from "@/lib/ProjectContext";
 
@@ -24,9 +24,31 @@ export default function Projects() {
   });
   const loadRepos = () => run(async () => setRepos(await api("/github/repos")));
 
+  // Keep each project's git status fresh: load on mount, then every 30s while the tab is visible.
+  const [checkedAt, setCheckedAt] = useState<Date | null>(null);
+  const refreshStatus = useCallback(async () => {
+    if (!projects.length) return;
+    const entries = await Promise.all(projects.map(async (p) => {
+      try { return [p.id, await api(`/projects/${p.id}/status`)] as const; }
+      catch (e: any) { return [p.id, { error: e.message }] as const; }
+    }));
+    setStatus(Object.fromEntries(entries));
+    setCheckedAt(new Date());
+  }, [projects]);
+  useEffect(() => {
+    refreshStatus();
+    const t = setInterval(() => { if (!document.hidden) refreshStatus(); }, 30_000);
+    const onVisible = () => { if (!document.hidden) refreshStatus(); };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => { clearInterval(t); document.removeEventListener("visibilitychange", onVisible); };
+  }, [refreshStatus]);
+
   return (
     <div>
-      <h2>Projects</h2>
+      <div className="row between">
+        <h2>Projects</h2>
+        {checkedAt && <span className="muted small">Status updated {checkedAt.toLocaleTimeString()}</span>}
+      </div>
       <div className="card">
         <h3>Add from git repo</h3>
         <form className="row" onSubmit={(e) => { e.preventDefault(); add(url); }}>
@@ -53,14 +75,19 @@ export default function Projects() {
           <div className="row between">
             <div><b>{p.name}</b><div className="muted">{p.repoUrl}</div></div>
             <div className="row">
-              <button onClick={() => run(async () => setStatus({ ...status, [p.id]: await api(`/projects/${p.id}/status`) }))}>Status</button>
-              <button onClick={() => run(async () => { const r = await api(`/projects/${p.id}/pull`, { body: {} }); setMsg(`${p.name}: ${r.output}`); })}>Pull</button>
+              <button onClick={() => run(refreshStatus)} title="Refresh now (updates automatically every 30s)">Refresh</button>
+              <button onClick={() => run(async () => { const r = await api(`/projects/${p.id}/pull`, { body: {} }); setMsg(`${p.name}: ${r.output}`); await refreshStatus(); })}>Pull</button>
               <button className="danger" onClick={() => confirm(`Remove ${p.name} and delete its checkout?`) && run(async () => { await api(`/projects/${p.id}`, { method: "DELETE" }); await reload(); })}>Remove</button>
             </div>
           </div>
-          {status[p.id] && (
+          {status[p.id]?.error && <div className="error" style={{ marginTop: 8 }}>{status[p.id].error}</div>}
+          {status[p.id] && !status[p.id].error && (
             <div className="muted" style={{ marginTop: 8 }}>
               Branch <b>{status[p.id].branch}</b> · {status[p.id].changes.length} uncommitted change(s)
+              {status[p.id].behind > 0 && <> · <span className="tag">{status[p.id].behind} new on GitHub — Pull to update</span></>}
+              {status[p.id].ahead > 0 && <> · {status[p.id].ahead} not pushed</>}
+              {status[p.id].behind === 0 && status[p.id].ahead === 0 && <> · up to date with GitHub</>}
+              {status[p.id].fetchError && <div className="error">Couldn&apos;t check GitHub: {status[p.id].fetchError}</div>}
               <ul>{status[p.id].commits.map((c: any) => <li key={c.hash}><code>{c.hash}</code> {c.subject} — {c.author}, {c.when}</li>)}</ul>
             </div>
           )}
