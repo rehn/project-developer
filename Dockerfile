@@ -1,7 +1,10 @@
 # syntax=docker/dockerfile:1
 
-# ---- 1. Frontend: static export of the Next.js app ----
-FROM node:22-bookworm-slim AS web
+# Stages 1 and 2 always run on the build machine's native architecture ($BUILDPLATFORM)
+# and cross-compile, so multi-arch builds never emulate (QEMU) the slow compile steps.
+
+# ---- 1. Frontend: static export of the Next.js app (architecture independent) ----
+FROM --platform=$BUILDPLATFORM node:22-bookworm-slim AS web
 WORKDIR /web
 COPY web/package.json web/package-lock.json ./
 RUN npm ci
@@ -9,13 +12,15 @@ COPY web/ ./
 ENV NEXT_EXPORT=1 NEXT_TELEMETRY_DISABLED=1
 RUN npm run build            # -> /web/out
 
-# ---- 2. Backend: static Go binary (pure-Go SQLite, no cgo) ----
-FROM golang:1.26-bookworm AS backend
+# ---- 2. Backend: static Go binary (pure-Go SQLite, no cgo), cross-compiled ----
+FROM --platform=$BUILDPLATFORM golang:1.26-bookworm AS backend
+ARG TARGETOS
+ARG TARGETARCH
 WORKDIR /src
 COPY backend/go.mod backend/go.sum ./
 RUN go mod download
 COPY backend/ ./
-RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/project-developer .
+RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build -trimpath -ldflags="-s -w" -o /out/project-developer .
 
 # ---- 3. Runtime: Debian + git + GitHub CLI + Claude Code ----
 FROM debian:bookworm-slim
