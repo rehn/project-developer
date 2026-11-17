@@ -6,7 +6,6 @@ cd "$(dirname "$0")"
 command -v go >/dev/null   || { echo "Go is required (https://go.dev/dl)"; exit 1; }
 command -v node >/dev/null || { echo "Node.js is required"; exit 1; }
 command -v git >/dev/null  || { echo "git is required"; exit 1; }
-command -v "${CLAUDE_BIN:-claude}" >/dev/null || echo "⚠ claude CLI not found on PATH — the Terminal page won't work (set CLAUDE_BIN)"
 
 [ -d web/node_modules ] || (echo "Installing frontend deps…" && cd web && npm install)
 

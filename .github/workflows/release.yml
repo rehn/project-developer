@@ -1,0 +1,107 @@
+name: release
+
+# Push a version tag (git tag v0.2.0 && git push origin v0.2.0) to:
+#   1. build and push the image to Docker Hub  (linux/amd64 + linux/arm64)
+#   2. package the Helm chart and push it to GHCR as an OCI artifact
+#   3. create a GitHub Release with generated notes and the chart attached
+#
+# Required repository secrets (Settings -> Secrets and variables -> Actions):
+#   DOCKERHUB_USERNAME   your Docker Hub username (or org that owns the repo)
+#   DOCKERHUB_TOKEN      a Docker Hub access token with Read & Write scope
+on:
+  push:
+    tags: ["v*"]
+  pull_request:
+    paths: ["charts/**", "Dockerfile", ".github/workflows/release.yml"]
+
+permissions:
+  contents: read
+
+jobs:
+  chart-lint:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/setup-helm@v4
+        with: { version: v3.16.3 }
+      - run: helm lint charts/project-developer
+      - run: helm template pd charts/project-developer >/dev/null
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write   # create the GitHub Release
+      packages: write   # push the chart to GHCR
+    env:
+      IMAGE: ${{ secrets.DOCKERHUB_USERNAME }}/project-developer
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check secrets and tag
+        env:
+          DH_USER: ${{ secrets.DOCKERHUB_USERNAME }}
+          DH_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+        run: |
+          [ -n "$DH_USER" ] && [ -n "$DH_TOKEN" ] || { echo "::error::Set DOCKERHUB_USERNAME and DOCKERHUB_TOKEN repository secrets"; exit 1; }
+          [[ "$GITHUB_REF_NAME" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]] || { echo "::error::Tag must look like v1.2.3 or v1.2.3-rc.1"; exit 1; }
+          echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_ENV"
+          echo "owner=${GITHUB_REPOSITORY_OWNER,,}" >> "$GITHUB_ENV"
+
+      # ---- Docker Hub image ----
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Image tags
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE }}
+          # 1.2.3 and 1.2 always; "latest" only for non-prerelease tags (flavor default)
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}},enable=${{ !contains(github.ref_name, '-') }}
+
+      - name: Build and push image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # ---- Helm chart (OCI on GHCR) ----
+      - uses: azure/setup-helm@v4
+        with: { version: v3.16.3 }
+
+      - name: Package chart
+        run: |
+          # Make the packaged chart default to the image we just pushed.
+          sed -i "s|^  repository: .*|  repository: docker.io/${IMAGE}|" charts/project-developer/values.yaml
+          helm lint charts/project-developer
+          helm package charts/project-developer --version "$version" --app-version "$version"
+
+      - name: Push chart to GHCR
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "$GH_TOKEN" | helm registry login ghcr.io -u "${{ github.actor }}" --password-stdin
+          helm push "project-developer-${version}.tgz" "oci://ghcr.io/${owner}/charts"
+
+      # ---- GitHub Release ----
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          flags=(--generate-notes --verify-tag)
+          [[ "$GITHUB_REF_NAME" == *-* ]] && flags+=(--prerelease)   # v1.2.3-rc.1 -> pre-release
+          gh release create "$GITHUB_REF_NAME" "project-developer-${version}.tgz" \
+            --title "$GITHUB_REF_NAME" "${flags[@]}"
