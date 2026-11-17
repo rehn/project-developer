@@ -1,4 +1,4 @@
-:root { --hdr:60px; --tabs:40px; --top:calc(var(--hdr) + var(--tabs)); --bg:#fff; --fg:#1b1f24; --muted:#6a737d; --card:#f6f8fa; --border:#d8dee4; --accent:#2f6feb; --green:#2da44e; --red:#cf222e; --screen:#0d1117; }
+:root { --hdr:60px; --tabs:var(--tabs-h, 40px); --top:calc(var(--hdr) + var(--tabs)); --bg:#fff; --fg:#1b1f24; --muted:#6a737d; --card:#f6f8fa; --border:#d8dee4; --accent:#2f6feb; --green:#2da44e; --red:#cf222e; --screen:#0d1117; }
 @media (prefers-color-scheme: dark) { :root { --bg:#0d1117; --fg:#e6edf3; --muted:#8b949e; --card:#161b22; --border:#30363d; --accent:#4c8dff; --screen:#010409; } }
 * { box-sizing: border-box; }
 body { margin:0; background:var(--bg); color:var(--fg); font:14px/1.5 system-ui,-apple-system,sans-serif; }
@@ -57,9 +57,9 @@ main:has(.project-view) { max-width:none; }
 @media (max-width:1100px) { .project-view { grid-template-columns:1fr; grid-template-rows:none; height:auto; } .project-view > .term { height:70vh; } }
 
 /* project tabs under the header */
-.ptabs { position:sticky; top:var(--hdr); z-index:9; height:var(--tabs); display:flex; align-items:flex-end; gap:8px; padding:0 16px; background:var(--bg); border-bottom:1px solid var(--border); }
-.ptabs-scroll { display:flex; align-items:flex-end; gap:2px; overflow-x:auto; min-width:0; flex:1; scrollbar-width:thin; align-self:stretch; }
-.ptabs-scroll > .muted { align-self:center; }
+.ptabs { position:sticky; top:var(--hdr); z-index:9; min-height:40px; display:flex; align-items:flex-end; gap:8px; padding:0 16px; background:var(--bg); border-bottom:1px solid var(--border); }
+.ptabs-scroll { display:flex; flex-wrap:wrap; align-items:flex-end; gap:4px 2px; padding-top:4px; min-width:0; flex:1; align-self:stretch; }
+.ptabs-scroll > .muted { align-self:center; padding-bottom:4px; }
 .ptab { display:flex; align-items:center; flex-shrink:0; border:1px solid transparent; border-bottom:0; border-radius:6px 6px 0 0; margin-bottom:-1px; color:var(--muted); }
 .ptab:hover { background:var(--card); color:var(--fg); }
 .ptab.active { background:var(--bg); border-color:var(--border); color:var(--fg); font-weight:600; box-shadow:inset 0 2px 0 var(--accent); }
@@ -68,7 +68,7 @@ main:has(.project-view) { max-width:none; }
 .ptab-x { padding:2px 8px 2px 4px; opacity:0; font-size:15px; line-height:1; }
 .ptab:hover .ptab-x, .ptab.active .ptab-x, .ptab-x:focus-visible { opacity:.6; } .ptab-x:hover { opacity:1; color:var(--red); }
 @media (hover:none) { .ptab-x { opacity:.6; } }
-.ptabs-menu { position:relative; align-self:center; flex-shrink:0; } .ptabs-menu > button { padding:3px 10px; font-size:12px; }
+.ptabs-menu { position:relative; align-self:flex-start; margin-top:7px; flex-shrink:0; } .ptabs-menu > button { padding:3px 10px; font-size:12px; }
 .ptabs-pop { position:absolute; right:0; top:calc(100% + 4px); z-index:20; min-width:180px; max-height:60vh; overflow:auto; display:flex; flex-direction:column; background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:4px; box-shadow:0 6px 20px rgba(0,0,0,.18); }
 .ptabs-pop button { border:0; text-align:left; background:none; padding:6px 10px; } .ptabs-pop button:hover { background:var(--card); }
 .small-btn { font-size:12px; padding:2px 8px; flex-shrink:0; align-self:center; } .small-btn.on { border-color:var(--accent); color:var(--accent); }
@@ -85,5 +85,5 @@ main:has(.project-view) { max-width:none; }
 .brand a { display:flex; align-items:center; gap:10px; color:inherit; text-decoration:none; }
 .hdr-link { display:flex; align-items:center; gap:6px; padding:5px 10px; border-radius:6px; color:inherit; text-decoration:none; }
 .hdr-link:hover, .hdr-link.active { background:var(--card); }
-.ptab-add { align-self:center; flex-shrink:0; margin-left:4px; width:26px; height:26px; display:grid; place-items:center; border-radius:6px; color:var(--muted); text-decoration:none; font-size:18px; line-height:1; }
+.ptab-add { align-self:center; flex-shrink:0; margin:0 0 4px 4px; width:26px; height:26px; display:grid; place-items:center; border-radius:6px; color:var(--muted); text-decoration:none; font-size:18px; line-height:1; }
 .ptab-add:hover, .ptab-add.active { background:var(--card); color:var(--fg); }
