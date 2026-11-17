@@ -77,3 +77,6 @@ main:has(.project-view) { max-width:none; }
 .ptabs-menu { position:relative; align-self:center; flex-shrink:0; } .ptabs-menu > button { padding:3px 10px; font-size:12px; }
 .ptabs-pop { position:absolute; right:0; top:calc(100% + 4px); z-index:20; min-width:180px; max-height:60vh; overflow:auto; display:flex; flex-direction:column; background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:4px; box-shadow:0 6px 20px rgba(0,0,0,.18); }
 .ptabs-pop button { border:0; text-align:left; background:none; padding:6px 10px; } .ptabs-pop button:hover { background:var(--card); }
+.small-btn { font-size:12px; padding:2px 8px; flex-shrink:0; align-self:center; } .small-btn.on { border-color:var(--accent); color:var(--accent); }
+.tagform { display:flex; flex-direction:column; gap:6px; margin-top:10px; } .tagform input { flex:1; min-width:0; font-family:ui-monospace,monospace; }
+.tagform .row { flex-wrap:nowrap; } .tagform .row + .row { flex-wrap:wrap; gap:4px; }
