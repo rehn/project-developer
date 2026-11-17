@@ -4,7 +4,8 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useProjects } from "@/lib/ProjectContext";
 
-/** One tab per project under the header. Tabs can be hidden (×) and brought back from the "hidden" menu;
+/** One tab per project under the header; tabs wrap onto more rows so every project stays visible.
+ *  Tabs can be hidden (×) and brought back from the "hidden" menu;
  *  "+" opens the page for adding and removing projects. */
 export default function ProjectTabs() {
   const { projects, selected, select: pick, hidden, hide, unhide } = useProjects();
@@ -15,6 +16,16 @@ export default function ProjectTabs() {
   const onTerminal = path.startsWith("/terminal");
   const [open, setOpen] = useState(false);
   const menu = useRef<HTMLDivElement>(null);
+  const bar = useRef<HTMLDivElement>(null);
+
+  // Tabs wrap onto extra rows when they don't fit; publish the bar's real height so the views below size to it.
+  useEffect(() => {
+    const el = bar.current; if (!el) return;
+    const root = document.documentElement.style;
+    const ro = new ResizeObserver(() => root.setProperty("--tabs-h", `${el.offsetHeight}px`));
+    ro.observe(el);
+    return () => { ro.disconnect(); root.removeProperty("--tabs-h"); };
+  }, []);
 
   useEffect(() => {
     if (!open) return;
@@ -28,7 +39,7 @@ export default function ProjectTabs() {
   const hiddenList = projects.filter((p) => hidden.includes(p.id));
 
   return (
-    <div className="ptabs">
+    <div className="ptabs" ref={bar}>
       <div className="ptabs-scroll" role="tablist">
         {!projects.length && <span className="muted small">No projects yet — <Link href="/projects">add one</Link></span>}
         {!!projects.length && !visible.length && <span className="muted small">All projects are hidden</span>}
