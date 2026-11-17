@@ -20,6 +20,7 @@ type Info = {
   pulls: { number: number; title: string; url: string; author: string; draft: boolean; head: string; updatedAt: string }[];
   runs: { id: number; name: string; title: string; url: string; status: string; event: string; branch: string; startedAt: string; actor: string }[];
   release: { tag: string; name: string; url: string; prerelease: boolean; publishedAt: string } | null;
+  tags: { name: string; sha: string; url: string }[];
   errors: Record<string, string>;
 };
 
@@ -29,6 +30,11 @@ export default function ProjectPanel({ project }: { project: Project }) {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
+  const [merging, setMerging] = useState<number | null>(null);
+  const [prMsg, setPrMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const [tagName, setTagName] = useState("");
+  const [tagging, setTagging] = useState(false);
+  const [tagMsg, setTagMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
   const load = useCallback(() => {
     setBusy(true);
@@ -54,6 +60,39 @@ export default function ProjectPanel({ project }: { project: Project }) {
     setBusy(true); setMsg("");
     try { const r = await api(`/projects/${project.id}/pull`, { body: {} }); setMsg(r.output || "Pulled"); await load(); }
     catch (e: any) { setMsg(e.message); setBusy(false); }
+  }
+
+  async function merge(n: number, title: string) {
+    if (!confirm(`Merge #${n} "${title}" into ${info?.repo?.defaultBranch ?? "the base branch"}?`)) return;
+    setMerging(n); setPrMsg(null);
+    try {
+      const r = await api(`/projects/${project.id}/pulls/${n}/merge`, { body: { method: "merge" } });
+      setPrMsg({ ok: true, text: `#${n}: ${r.message || "merged"}` });
+      await load();
+    } catch (e: any) { setPrMsg({ ok: false, text: `#${n}: ${e.message}` }); }
+    finally { setMerging(null); }
+  }
+
+  // Suggest the next versions from the newest semver tag (v1.2.3 → v1.2.4 / v1.3.0 / v2.0.0).
+  const latest = info?.tags?.map((t) => /^(v?)(\d+)\.(\d+)\.(\d+)$/.exec(t.name)).find((m) => m != null) ?? null;
+  let bumps: [string, string][] = [["", "v0.1.0"]];
+  if (latest) {
+    const v = latest[1], x = +latest[2], y = +latest[3], z = +latest[4];
+    bumps = [["patch", `${v}${x}.${y}.${z + 1}`], ["minor", `${v}${x}.${y + 1}.0`], ["major", `${v}${x + 1}.0.0`]];
+  }
+  useEffect(() => { setTagName(""); setTagMsg(null); }, [project.id]);
+  const tagValue = tagName || bumps[0][1];
+
+  async function createTag() {
+    const branch = info?.repo?.defaultBranch ?? "the default branch";
+    if (!confirm(`Create tag ${tagValue} on the latest ${branch}?\n\nPushing a tag can start release workflows.`)) return;
+    setTagging(true); setTagMsg(null);
+    try {
+      const r = await api(`/projects/${project.id}/tags`, { body: { name: tagValue } });
+      setTagMsg({ ok: true, text: `Created ${r.name} at ${short(r.sha)}` }); setTagName("");
+      await load();
+    } catch (e: any) { setTagMsg({ ok: false, text: e.message }); }
+    finally { setTagging(false); }
   }
 
   const behind = info?.local.hash && info.commit && info.local.hash !== info.commit.hash
@@ -121,9 +160,13 @@ export default function ProjectPanel({ project }: { project: Project }) {
                 <li key={p.number}><div>
                   <a href={p.url} target="_blank" rel="noreferrer">#{p.number} {p.title}</a> {p.draft && <span className="tag">draft</span>}
                   <div className="muted small">{p.author} · {p.head} · {ago(p.updatedAt)}</div>
-                </div></li>
+                </div>
+                <button className="small-btn" onClick={() => merge(p.number, p.title)} disabled={p.draft || merging !== null}
+                  title={p.draft ? "Draft pull requests can't be merged" : `Merge #${p.number}`}>{merging === p.number ? "Merging…" : "Merge"}</button>
+                </li>
               ))}
             </ul>
+            {prMsg && <div className={`${prMsg.ok ? "ok" : "error"} small`}>{prMsg.text}</div>}
           </section>
 
           <section>
@@ -137,6 +180,36 @@ export default function ProjectPanel({ project }: { project: Project }) {
               </div>
             )}
           </section>
+
+          {info.project.isGithub && (
+            <section>
+              <h4>Tags</h4>
+              {info.errors.tags && <div className="error small">{info.errors.tags}</div>}
+              {!info.errors.tags && !info.tags?.length && <div className="muted small">No tags yet</div>}
+              <ul className="list tight">
+                {info.tags?.map((t) => (
+                  <li key={t.name}>
+                    <a href={t.url} target="_blank" rel="noreferrer"><b>{t.name}</b></a>
+                    <span className="row"><code className="muted">{short(t.sha)}</code>
+                      {info.commit && t.sha === info.commit.hash && <span className="tag">{info.repo?.defaultBranch}</span>}</span>
+                  </li>
+                ))}
+              </ul>
+              <div className="tagform">
+                <div className="muted small">New tag on latest {info.repo?.defaultBranch ?? "default branch"}{info.commit && <> (<code>{short(info.commit.hash)}</code>)</>}</div>
+                <div className="row">
+                  <input value={tagValue} onChange={(e) => setTagName(e.target.value)} onKeyDown={(e) => e.key === "Enter" && !tagging && createTag()} aria-label="Tag name" />
+                  <button className="primary" onClick={createTag} disabled={tagging || !tagValue.trim()}>{tagging ? "Creating…" : "Create tag"}</button>
+                </div>
+                {latest && (
+                  <div className="row">
+                    {bumps.map(([k, v]) => <button key={k} className={`small-btn ${tagValue === v ? "on" : ""}`} onClick={() => setTagName(v)}>{k} {v}</button>)}
+                  </div>
+                )}
+                {tagMsg && <div className={`${tagMsg.ok ? "ok" : "error"} small`}>{tagMsg.text}</div>}
+              </div>
+            </section>
+          )}
         </>
       )}
     </div>

@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"net/http"
+	"sort"
 	"strings"
 	"sync"
 )
@@ -47,6 +48,7 @@ func handleProjectInfo(w http.ResponseWriter, r *http.Request) {
 	var repo, commit, release map[string]any
 	pulls := []map[string]any{}
 	runs := []map[string]any{}
+	tags := []map[string]any{}
 	if p.Owner != "" {
 		base := "/repos/" + p.Owner + "/" + p.Repo
 		run(func() {
@@ -131,6 +133,25 @@ func handleProjectInfo(w http.ResponseWriter, r *http.Request) {
 			}
 		})
 		run(func() {
+			// GitHub lists tags by name, not version or date, so sort by semver here.
+			var x []struct {
+				Name   string
+				Commit struct{ SHA string }
+			}
+			if e := gh(base+"/tags?per_page=100", &x); e != nil {
+				setErr("tags", e)
+				return
+			}
+			sort.SliceStable(x, func(i, j int) bool { return versionLess(x[j].Name, x[i].Name) })
+			for i, y := range x {
+				if i == 8 {
+					break
+				}
+				tags = append(tags, map[string]any{"name": y.Name, "sha": y.Commit.SHA,
+					"url": "https://github.com/" + p.Owner + "/" + p.Repo + "/releases/tag/" + y.Name})
+			}
+		})
+		run(func() {
 			// Most recent release including pre-releases (the /latest endpoint skips them).
 			var x []struct {
 				TagName     string `json:"tag_name"`
@@ -157,6 +178,6 @@ func handleProjectInfo(w http.ResponseWriter, r *http.Request) {
 
 	writeJSON(w, map[string]any{
 		"project": map[string]any{"id": p.ID, "name": p.Name, "repoUrl": p.RepoURL, "isGithub": p.Owner != ""},
-		"local":   local, "repo": repo, "commit": commit, "pulls": pulls, "runs": runs, "release": release, "errors": errs,
+		"local":   local, "repo": repo, "commit": commit, "pulls": pulls, "runs": runs, "tags": tags, "release": release, "errors": errs,
 	})
 }
