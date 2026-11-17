@@ -1,3 +1,4 @@
+{{- if (.Values.ingress).enabled }}{{ fail "Ingress support was removed from this chart. Expose the app with httpRoute (Gateway API) instead, see values.yaml." }}{{ end }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:

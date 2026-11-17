@@ -31,11 +31,9 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 {{- default (include "pd.fullname" .) .Values.persistence.existingClaim }}
 {{- end }}
 
-{{/* Browser origins allowed to make state-changing requests: ingress hosts + extras. */}}
+{{/* Browser origins allowed to make state-changing requests: HTTPRoute hostnames + extras. */}}
 {{- define "pd.allowedOrigins" -}}
-{{- $scheme := ternary "https" "http" (gt (len .Values.ingress.tls) 0) -}}
 {{- $o := list -}}
-{{- if .Values.ingress.enabled }}{{ range .Values.ingress.hosts }}{{ $o = append $o (printf "%s://%s" $scheme .host) }}{{ end }}{{ end -}}
 {{- if .Values.httpRoute.enabled }}{{ range .Values.httpRoute.hostnames }}{{ $o = append $o (printf "%s://%s" $.Values.httpRoute.scheme .) }}{{ end }}{{ end -}}
 {{- range .Values.config.allowedOrigins }}{{ $o = append $o . }}{{ end -}}
 {{- join "," $o -}}

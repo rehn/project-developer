@@ -6,7 +6,6 @@ Claude login are lost whenever the pod restarts. Set persistence.enabled=true.
 {{- end }}
 
 {{ if .Values.httpRoute.enabled }}Open: {{ .Values.httpRoute.scheme }}://{{ first .Values.httpRoute.hostnames }}
-{{- else if .Values.ingress.enabled }}Open: {{ if .Values.ingress.tls }}https{{ else }}http{{ end }}://{{ (first .Values.ingress.hosts).host }}
 {{- else }}Reach it locally with:
   kubectl -n {{ .Release.Namespace }} port-forward svc/{{ include "pd.fullname" . }} 8080:{{ .Values.service.port }}
 then open http://localhost:8080  (set config.cookieSecure=false for plain http)
@@ -19,4 +18,4 @@ First steps:
      and paste the code it shows back into the terminal.
 
 Anyone who can sign in gets Claude with shell access inside this pod: keep the
-ingress behind a VPN/SSO if you can.
+gateway behind a VPN/SSO if you can.

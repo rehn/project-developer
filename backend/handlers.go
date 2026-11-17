@@ -40,7 +40,7 @@ func readJSON(w http.ResponseWriter, r *http.Request, v any) bool {
 	return true
 }
 func clientIP(r *http.Request) string {
-	// Behind an ingress every request shares the proxy's address; opt in to trust X-Forwarded-For.
+	// Behind a gateway/reverse proxy every request shares the proxy's address; opt in to trust X-Forwarded-For.
 	if env("TRUST_PROXY", "") == "true" {
 		if xf := r.Header.Get("X-Forwarded-For"); xf != "" {
 			return strings.TrimSpace(strings.Split(xf, ",")[0])

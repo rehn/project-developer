@@ -17,7 +17,7 @@ First visit creates your account. Then: Settings (top right) â†’ GitHub token â†
 
 ## Config (env, backend)
 `ADDR` (127.0.0.1:3001), `DATA_DIR` (./data), `CLAUDE_BIN` (claude), `CLAUDE_CONFIG_DIR`,
-`GITHUB_API_URL` (GitHub Enterprise), `ALLOWED_ORIGINS`, `COOKIE_SECURE=true` (behind HTTPS), `TRUST_PROXY=true` (behind an ingress). Frontend: `BACKEND_URL`.
+`GITHUB_API_URL` (GitHub Enterprise), `ALLOWED_ORIGINS`, `COOKIE_SECURE=true` (behind HTTPS), `TRUST_PROXY=true` (behind a gateway/reverse proxy). Frontend: `BACKEND_URL`.
 
 ## Notes
 - Header gauges: plan limits (5-hour / weekly %) come live from Anthropic via your Claude Code login (undocumented endpoint, read-only, token never leaves the backend).
@@ -54,11 +54,11 @@ One-time setup: add repository secrets `DOCKERHUB_USERNAME` and `DOCKERHUB_TOKEN
 
 Example `my-values.yaml`:
 
-    ingress:
+    httpRoute:
       enabled: true
-      className: nginx
-      hosts: [{ host: project-developer.example.com, paths: [{ path: /, pathType: Prefix }] }]
-      tls: [{ secretName: project-developer-tls, hosts: [project-developer.example.com] }]
+      parentRefs: [{ name: my-gateway, namespace: gateways, sectionName: https }]
+      hostnames: [project-developer.example.com]
+      # timeouts: { request: 0s }   # if your gateway times out long-lived requests
     persistence:
       size: 20Gi
       storageClass: ""          # "" = cluster default
@@ -66,17 +66,9 @@ Example `my-values.yaml`:
       git: { authorName: "Your Name", authorEmail: "you@example.com" }
     # imagePullSecrets: [{ name: dockerhub-pull }]   # only if the Docker Hub repo is private
 
-- **Gateway API:** instead of `ingress`, set `httpRoute.enabled=true` with the Gateway to attach to (`httpRoute.parentRefs` is required) and your `httpRoute.hostnames`:
-
-      httpRoute:
-        enabled: true
-        parentRefs: [{ name: my-gateway, namespace: gateways, sectionName: https }]
-        hostnames: [project-developer.example.com]
-        # timeouts: { request: 0s }   # if your gateway times out long-lived requests
-
-  The terminal is a long-lived WebSocket, so make sure your gateway doesn't cut idle connections too early (implementation specific, e.g. an Envoy Gateway `ClientTrafficPolicy`/`BackendTrafficPolicy`).
+- **Exposing it:** the chart exposes the app only through a Gateway API `HTTPRoute` (`httpRoute.parentRefs` is required); there is no Ingress support. Without a route, use `kubectl port-forward`. The terminal is a long-lived WebSocket, so make sure your gateway doesn't cut idle connections too early (implementation specific, e.g. an Envoy Gateway `ClientTrafficPolicy`/`BackendTrafficPolicy`). Image uploads in the terminal are up to 20 MB; Envoy-based gateways and Traefik have no body limit by default, NGINX Gateway Fabric needs a `ClientSettingsPolicy` with `body.maxSize`.
 - **Storage:** a PVC (default 20Gi, `ReadWriteOnce`) is mounted at `/data` and holds everything that must be kept: the database and its encryption key, cloned repos, and Claude's login/history/usage logs. Use `persistence.existingClaim` to bring your own, or add `persistence.annotations: {helm.sh/resource-policy: keep}` so the data survives `helm uninstall`.
 - **One replica only:** state is SQLite on the volume plus live terminal sessions in memory.
 - **From a checkout** (no registry): `helm install project-developer ./charts/project-developer -f my-values.yaml`.
 - **First run:** create your account, add your GitHub token in Settings (it is also given to `gh`/`git push` inside Claude sessions), then Terminal -> **Sign in with Claude**. There's no browser in the pod: open the printed link on your own machine and paste the code back into the terminal.
-- **Security:** anyone who can sign in gets Claude with shell access inside the pod. Keep the pod's network access and credentials minimal and put the ingress behind a VPN or SSO if you can.
+- **Security:** anyone who can sign in gets Claude with shell access inside the pod. Keep the pod's network access and credentials minimal and put the gateway behind a VPN or SSO if you can.
