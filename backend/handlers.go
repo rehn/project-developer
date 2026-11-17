@@ -300,63 +300,6 @@ func fetchDue(id int64) bool {
 	return true
 }
 
-// ---- open pull requests ----
-
-func handlePulls(w http.ResponseWriter, r *http.Request) {
-	type pr struct {
-		Number    int    `json:"number"`
-		Title     string `json:"title"`
-		URL       string `json:"url"`
-		Author    string `json:"author"`
-		Draft     bool   `json:"draft"`
-		Head      string `json:"head"`
-		Base      string `json:"base"`
-		CreatedAt string `json:"createdAt"`
-		UpdatedAt string `json:"updatedAt"`
-	}
-	type result struct {
-		ProjectID int64  `json:"projectId"`
-		Project   string `json:"project"`
-		Pulls     []pr   `json:"pulls"`
-		Error     string `json:"error,omitempty"`
-	}
-	var projs []project
-	for _, p := range allProjects() {
-		if p.Owner != "" {
-			projs = append(projs, p)
-		}
-	}
-	out := make([]result, len(projs))
-	var wg sync.WaitGroup
-	for i, p := range projs {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			out[i] = result{ProjectID: p.ID, Project: p.Name, Pulls: []pr{}}
-			var raw []struct {
-				Number    int    `json:"number"`
-				Title     string `json:"title"`
-				HTMLURL   string `json:"html_url"`
-				Draft     bool   `json:"draft"`
-				CreatedAt string `json:"created_at"`
-				UpdatedAt string `json:"updated_at"`
-				User      struct{ Login string }
-				Head      struct{ Ref string }
-				Base      struct{ Ref string }
-			}
-			if err := gh("/repos/"+p.Owner+"/"+p.Repo+"/pulls?state=open&per_page=50", &raw); err != nil {
-				out[i].Error = err.Error()
-				return
-			}
-			for _, x := range raw {
-				out[i].Pulls = append(out[i].Pulls, pr{x.Number, x.Title, x.HTMLURL, x.User.Login, x.Draft, x.Head.Ref, x.Base.Ref, x.CreatedAt, x.UpdatedAt})
-			}
-		}()
-	}
-	wg.Wait()
-	writeJSON(w, out)
-}
-
 func contextTimeout(r *http.Request, d time.Duration) (context.Context, context.CancelFunc) {
 	return context.WithTimeout(r.Context(), d)
 }

@@ -1,5 +1,6 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
 import { api } from "@/lib/api";
 import { useProjects } from "@/lib/ProjectContext";
 import TermView from "@/components/TermView";
@@ -55,7 +56,7 @@ export default function Terminal() {
       </div>
     );
 
-  if (!selected) return <p className="muted">Add a project first (Projects tab).</p>;
+  if (!selected) return <p className="muted">No project yet — <Link href="/projects">add one</Link> (or use + in the tab bar).</p>;
 
   const key = `p${selected.id}`;
   const running = live.includes(key);
