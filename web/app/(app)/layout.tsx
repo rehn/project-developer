@@ -4,7 +4,8 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { api } from "@/lib/api";
 import HeaderBar from "@/components/HeaderBar";
-import { ProjectProvider, useProjects } from "@/lib/ProjectContext";
+import ProjectTabs from "@/components/ProjectTabs";
+import { ProjectProvider } from "@/lib/ProjectContext";
 
 const NAV = [
   ["/terminal", "Terminal"], ["/projects", "Projects"], ["/pulls", "Pull requests"],
@@ -13,16 +14,12 @@ const NAV = [
 
 function Shell({ user, children }: { user: string; children: React.ReactNode }) {
   const path = usePathname();
-  const { projects, selected, select } = useProjects();
   return (
     <div className="app">
       <HeaderBar user={user} />
+      <ProjectTabs />
       <div className="shell">
         <aside>
-          <select value={selected?.id ?? ""} onChange={(e) => select(Number(e.target.value))} disabled={!projects.length}>
-            {!projects.length && <option>No projects yet</option>}
-            {projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-          </select>
           <nav>
             {NAV.map(([href, label]) => (
               <Link key={href} href={href} className={path.startsWith(href) ? "active" : ""}>{label}</Link>
