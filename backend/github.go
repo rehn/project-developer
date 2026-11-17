@@ -35,7 +35,7 @@ func (e *httpErr) Error() string { return e.msg }
 var ghClient = &http.Client{Timeout: 20 * time.Second}
 
 func ghRequest(method, path, token string, out any) error {
-	req, _ := http.NewRequest(method, "https://api.github.com"+path, nil)
+	req, _ := http.NewRequest(method, env("GITHUB_API_URL", "https://api.github.com")+path, nil)
 	req.Header.Set("Authorization", "Bearer "+token)
 	req.Header.Set("Accept", "application/vnd.github+json")
 	req.Header.Set("X-GitHub-Api-Version", "2022-11-28")

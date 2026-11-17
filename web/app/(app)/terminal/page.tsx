@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import { useProjects } from "@/lib/ProjectContext";
 import TermView from "@/components/TermView";
+import ProjectPanel from "@/components/ProjectPanel";
 
 type Auth = { installed: boolean; loggedIn?: boolean; authMethod?: string; expiresAt?: string; bin?: string };
 
@@ -64,21 +65,24 @@ export default function Terminal() {
   }
 
   return (
-    <div className="term">
-      <div className="row between">
-        <h2>Claude — {selected.name} {running && <span className="tag">session running</span>}</h2>
-        <div className="row">
-          {!running && (
-            <label className="row muted" title="Resume the most recent conversation in this project">
-              <input type="checkbox" checked={cont} onChange={(e) => setCont(e.target.checked)} /> Continue last conversation
-            </label>
-          )}
-          <span className="muted small">signed in via {auth.authMethod ?? "Claude"}</span>
-          <button onClick={restart}>Restart</button>
+    <div className="project-view">
+      <div className="term">
+        <div className="row between">
+          <h2>Claude — {selected.name} {running && <span className="tag">session running</span>}</h2>
+          <div className="row">
+            {!running && (
+              <label className="row muted" title="Resume the most recent conversation in this project">
+                <input type="checkbox" checked={cont} onChange={(e) => setCont(e.target.checked)} /> Continue last conversation
+              </label>
+            )}
+            <span className="muted small">signed in via {auth.authMethod ?? "Claude"}</span>
+            <button onClick={restart}>Restart</button>
+          </div>
         </div>
+        <TermView key={`${key}-${nonce}`} target={String(selected.id)} cont={cont} onExit={() => { setEnded(true); refreshLive(); }} />
+        {ended && <div className="row"><span className="muted">Session ended.</span><button className="primary" onClick={restart}>Start new session</button></div>}
       </div>
-      <TermView key={`${key}-${nonce}`} target={String(selected.id)} cont={cont} onExit={() => { setEnded(true); refreshLive(); }} />
-      {ended && <div className="row"><span className="muted">Session ended.</span><button className="primary" onClick={restart}>Start new session</button></div>}
+      <ProjectPanel project={selected} />
     </div>
   );
 }
