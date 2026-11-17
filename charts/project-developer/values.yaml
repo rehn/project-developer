@@ -24,9 +24,9 @@ persistence:
 
 # --- App config ----------------------------------------------------------------
 config:
-  cookieSecure: true     # set false only if you serve plain http (no TLS at the ingress)
-  trustProxy: true       # use X-Forwarded-For for login throttling (behind an ingress)
-  allowedOrigins: []     # extra browser origins; the ingress hosts are added automatically
+  cookieSecure: true     # set false only if you serve plain http (no TLS at the gateway)
+  trustProxy: true       # use X-Forwarded-For for login throttling (behind a gateway)
+  allowedOrigins: []     # extra browser origins; httpRoute.hostnames are added automatically
   git:                   # identity for commits Claude makes in the pod
     authorName: ""
     authorEmail: ""
@@ -37,21 +37,8 @@ service:
   type: ClusterIP
   port: 80
 
-ingress:
-  enabled: false
-  className: ""
-  annotations:
-    # ingress-nginx: keep long-lived terminal WebSockets open
-    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
-    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
-    # allow images pasted into the terminal (backend limit is 20 MB)
-    nginx.ingress.kubernetes.io/proxy-body-size: "25m"
-  hosts:
-    - host: project-developer.example.com
-      paths: [{ path: /, pathType: Prefix }]
-  tls: []                # [{ secretName: project-developer-tls, hosts: [project-developer.example.com] }]
-
-# Gateway API alternative to Ingress (requires the Gateway API CRDs and a Gateway).
+# Exposing the app: Gateway API HTTPRoute (requires the Gateway API CRDs and a Gateway).
+# Without it, reach the Service with kubectl port-forward.
 httpRoute:
   enabled: false
   annotations: {}
