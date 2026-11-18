@@ -107,6 +107,9 @@ func getSetting(k string) string {
 	return v
 }
 
+// generalModelKey stores the model for the General (project-less) Claude session.
+const generalModelKey = "claude_model:general"
+
 func modelKey(id int64) string { return "claude_model:" + strconv.FormatInt(id, 10) }
 
 // projectModel is the model new Claude sessions in a project start with ("" = Claude Code's own default).

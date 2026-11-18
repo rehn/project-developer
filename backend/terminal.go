@@ -127,6 +127,9 @@ func sessionTarget(r *http.Request) (key, dir string, args []string, err error) 
 		if cont {
 			args = []string{"--continue"}
 		}
+		if m := getSetting(generalModelKey); m != "" {
+			args = append([]string{"--model", m}, args...)
+		}
 		return "general", dir, args, nil
 	}
 	proj, err := getProject(p)
