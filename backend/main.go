@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 )
 
 // allowedOrigins: browser origins permitted to make state-changing requests.
@@ -86,7 +87,7 @@ func main() {
 	// Localhost-only by default: this app can run Claude with write access to your machine.
 	addr := env("ADDR", "127.0.0.1:3001")
 	log.Printf("project-developer API on http://%s", addr)
-	log.Fatal(http.ListenAndServe(addr, csrf(root)))
+	log.Fatal(http.ListenAndServe(addr, requestTimeout(30*time.Second, csrf(root))))
 }
 
 // staticDir returns the exported Next.js UI directory, if present (Docker/production).
