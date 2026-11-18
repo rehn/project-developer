@@ -9,5 +9,5 @@ export async function api<T = any>(path: string, opts: { method?: string; body?:
   return data;
 }
 
-export type Project = { id: number; name: string; repoUrl: string; owner: string; repo: string };
+export type Project = { id: number; name: string; repoUrl: string; owner: string; repo: string; model: string };
 export const fmt = (n: number) => n >= 1e6 ? (n / 1e6).toFixed(2) + "M" : n >= 1e3 ? (n / 1e3).toFixed(1) + "k" : String(n);
