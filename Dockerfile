@@ -22,7 +22,12 @@ RUN go mod download
 COPY backend/ ./
 RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build -trimpath -ldflags="-s -w" -o /out/project-developer .
 
-# ---- 3. Runtime: Debian + git + GitHub CLI + Claude Code ----
+# ---- 3. Toolchains for the runtime image, taken for the *target* architecture ----
+# Same Debian release as the runtime stage, so the binaries are glibc-compatible.
+FROM golang:1.26-bookworm AS go-toolchain
+FROM node:22-bookworm-slim AS node-toolchain
+
+# ---- 4. Runtime: Debian + git + GitHub CLI + Go + Node.js + Claude Code ----
 FROM debian:bookworm-slim
 # Pin Claude Code; bump to upgrade (see https://claude.com/claude-code).
 ARG CLAUDE_CODE_VERSION=2.1.326
@@ -36,6 +41,17 @@ RUN apt-get update \
  && echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" > /etc/apt/sources.list.d/github-cli.list \
  && apt-get update && apt-get install -y --no-install-recommends gh \
  && rm -rf /var/lib/apt/lists/*
+
+# Go and Node.js (+ npm, corepack), so Claude can build and test projects inside the container.
+COPY --from=go-toolchain /usr/local/go /usr/local/go
+COPY --from=node-toolchain /usr/local/bin/node /usr/local/bin/node
+COPY --from=node-toolchain /usr/local/lib/node_modules /usr/local/lib/node_modules
+RUN ln -s ../lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm \
+ && ln -s ../lib/node_modules/npm/bin/npx-cli.js /usr/local/bin/npx \
+ && ln -s ../lib/node_modules/corepack/dist/corepack.js /usr/local/bin/corepack \
+ && ln -s /usr/local/go/bin/go /usr/local/bin/go \
+ && ln -s /usr/local/go/bin/gofmt /usr/local/bin/gofmt \
+ && node --version && npm --version && go version
 
 # Claude Code (native installer), installed system-wide so a mounted volume can't hide it.
 RUN HOME=/tmp/claude-install curl -fsSL https://claude.ai/install.sh | HOME=/tmp/claude-install bash -s "${CLAUDE_CODE_VERSION}" \
