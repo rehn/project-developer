@@ -26,8 +26,9 @@ RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build -trimpath -ldflags=
 # Same Debian release as the runtime stage, so the binaries are glibc-compatible.
 FROM golang:1.26-bookworm AS go-toolchain
 FROM node:22-bookworm-slim AS node-toolchain
+FROM alpine/helm:3.19.0 AS helm-toolchain
 
-# ---- 4. Runtime: Debian + git + GitHub CLI + Go + Node.js + Claude Code ----
+# ---- 4. Runtime: Debian + git + GitHub CLI + Go + Node.js + Helm + Claude Code ----
 FROM debian:bookworm-slim
 # Pin Claude Code; bump to upgrade (see https://claude.com/claude-code).
 ARG CLAUDE_CODE_VERSION=2.1.326
@@ -52,6 +53,10 @@ RUN ln -s ../lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm \
  && ln -s /usr/local/go/bin/go /usr/local/bin/go \
  && ln -s /usr/local/go/bin/gofmt /usr/local/bin/gofmt \
  && node --version && npm --version && go version
+
+# Helm (statically linked, so the binary from the Alpine-based image runs fine on Debian).
+COPY --from=helm-toolchain /usr/bin/helm /usr/local/bin/helm
+RUN helm version --short
 
 # Claude Code (native installer), installed system-wide so a mounted volume can't hide it.
 RUN HOME=/tmp/claude-install curl -fsSL https://claude.ai/install.sh | HOME=/tmp/claude-install bash -s "${CLAUDE_CODE_VERSION}" \
