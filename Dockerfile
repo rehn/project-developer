@@ -28,20 +28,21 @@ FROM golang:1.26-bookworm AS go-toolchain
 FROM node:22-bookworm-slim AS node-toolchain
 FROM alpine/helm:3.19.0 AS helm-toolchain
 
-# ---- 4. Runtime: Debian + git + GitHub CLI + Go + Node.js + Helm + Claude Code ----
+# ---- 4. Runtime: Debian + git + GitHub CLI + Go + Node.js + Python + Helm + Claude Code ----
 FROM debian:bookworm-slim
 # Pin Claude Code; bump to upgrade (see https://claude.com/claude-code).
 ARG CLAUDE_CODE_VERSION=2.1.326
 
 RUN apt-get update \
- && apt-get install -y --no-install-recommends ca-certificates curl git openssh-client tini \
+ && apt-get install -y --no-install-recommends ca-certificates curl git openssh-client python3 python3-pip python3-venv tini \
  # GitHub CLI from the official apt repo
  && mkdir -p -m 755 /etc/apt/keyrings \
  && curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg -o /etc/apt/keyrings/githubcli-archive-keyring.gpg \
  && chmod go+r /etc/apt/keyrings/githubcli-archive-keyring.gpg \
  && echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" > /etc/apt/sources.list.d/github-cli.list \
  && apt-get update && apt-get install -y --no-install-recommends gh \
- && rm -rf /var/lib/apt/lists/*
+ && rm -rf /var/lib/apt/lists/* \
+ && python3 --version && pip3 --version
 
 # Go and Node.js (+ npm, corepack), so Claude can build and test projects inside the container.
 COPY --from=go-toolchain /usr/local/go /usr/local/go
