@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
+import { useProjects } from "@/lib/ProjectContext";
 
 // "" = Claude Code's own default. Any other alias or full model ID can be typed under "Other…".
 const MODELS = [
@@ -12,19 +13,21 @@ const MODELS = [
 ];
 const OTHER = "__other";
 
-/** Page footer: picks the model new Claude sessions start with (passed as `claude --model`). */
+/** Page footer: picks the model new Claude sessions in the selected project start with (passed as `claude --model`). */
 export default function FooterBar() {
-  const [model, setModel] = useState<string | null>(null);
+  const { selected, reload } = useProjects();
+  const model = selected ? selected.model ?? "" : null;
   const [custom, setCustom] = useState<string | null>(null); // non-null while typing an "Other…" model
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
-  useEffect(() => { api("/settings").then((s) => setModel(s.model ?? "")).catch(() => setModel("")); }, []);
+  useEffect(() => { setCustom(null); setMsg(null); }, [selected?.id]);
 
   async function save(m: string) {
+    if (!selected) return;
     setMsg(null);
     try {
-      const r = await api("/settings/model", { method: "PUT", body: { model: m } });
-      setModel(r.model); setCustom(null);
+      await api(`/projects/${selected.id}/model`, { method: "PUT", body: { model: m } });
+      await reload(); setCustom(null);
       setMsg({ ok: true, text: "Saved — new sessions use it; restart a running one to switch" });
     } catch (e: any) { setMsg({ ok: false, text: e.message }); }
   }
@@ -33,8 +36,8 @@ export default function FooterBar() {
   return (
     <footer className="footbar">
       <label className="row">
-        <span className="muted">Model</span>
-        {model === null ? <span className="muted small">…</span> : (
+        <span className="muted">Model{selected ? ` · ${selected.name}` : ""}</span>
+        {model === null ? <span className="muted small">No project</span> : (
           <select value={custom !== null ? OTHER : model} onChange={(e) => e.target.value === OTHER ? setCustom(known ? "" : model) : save(e.target.value)}>
             {MODELS.map((m) => <option key={m.id} value={m.id}>{m.label}</option>)}
             {!known && <option value={model}>{model}</option>}
