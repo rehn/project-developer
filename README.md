@@ -21,7 +21,7 @@ First visit creates your account. Then: Settings (top right) → GitHub token �
 
 ## Notes
 - Header gauges: plan limits (5-hour / weekly %) come live from Anthropic via your Claude Code login (undocumented endpoint, read-only, token never leaves the backend).
-- Footer: pick the model new Claude sessions in the selected project start with (stored per project) (Default, Opus, Sonnet, Haiku, Fable, or any alias/model ID under "Other…"); it is passed as `claude --model`. Restart a running session to switch.
+- Footer: pick the model new Claude sessions start with (Default, Opus, Sonnet, Haiku, Fable, or any alias/model ID under "Other…"); it is passed as `claude --model`. Restart a running session to switch.
 - The Terminal page is a real interactive Claude Code session (PTY + xterm.js) in the project checkout, with Claude's own permission prompts and slash commands. Sessions keep running when you leave the page or reload, and reattach with recent output replayed. If you are signed out it offers "Sign in with Claude" (runs `claude auth login`). The CLI is found via `CLAUDE_BIN`, `PATH`, common install paths, or the copy bundled with the VS Code extension.
 - Binds to localhost by default — this app can edit files on your machine; put real TLS/auth in front before exposing it.
 

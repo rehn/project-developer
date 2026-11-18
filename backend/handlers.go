@@ -61,7 +61,7 @@ func handleGetSettings(w http.ResponseWriter, r *http.Request) {
 	if len(t) >= 4 {
 		hint = "…" + t[len(t)-4:]
 	}
-	writeJSON(w, map[string]any{"githubTokenSet": t != "", "githubTokenHint": hint})
+	writeJSON(w, map[string]any{"githubTokenSet": t != "", "githubTokenHint": hint, "model": claudeModel()})
 }
 
 func handleSetToken(w http.ResponseWriter, r *http.Request) {
@@ -112,7 +112,6 @@ type project struct {
 	Repo      string `json:"repo"`
 	Dir       string `json:"-"`
 	CreatedAt int64  `json:"createdAt"`
-	Model     string `json:"model"` // Claude model for new sessions in this project; "" = Claude Code's default
 }
 
 func scanProject(s interface{ Scan(...any) error }) (p project, err error) {
@@ -124,7 +123,6 @@ func scanProject(s interface{ Scan(...any) error }) (p project, err error) {
 	if rp != nil {
 		p.Repo = *rp
 	}
-	p.Model = projectModel(p.ID)
 	return
 }
 
@@ -216,7 +214,6 @@ func handleDeleteProject(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	db.Exec(`DELETE FROM projects WHERE id=?`, p.ID)
-	deleteSetting(modelKey(p.ID))
 	if filepath.Dir(p.Dir) == projectsDir { // only remove checkouts we manage
 		os.RemoveAll(p.Dir)
 	}
@@ -307,28 +304,23 @@ func contextTimeout(r *http.Request, d time.Duration) (context.Context, context.
 	return context.WithTimeout(r.Context(), d)
 }
 
-// PUT /api/projects/{id}/model {model} sets the model new Claude sessions in that project start with; "" means Claude Code's default.
+// PUT /api/settings/model {model} sets the model new Claude sessions start with; "" means Claude Code's default.
 // Accepts an alias (opus, sonnet, haiku, …) or a full model ID.
 var modelRe = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._:\[\]-]{0,79}$`)
 
 func handleSetModel(w http.ResponseWriter, r *http.Request) {
-	p, err := getProject(r.PathValue("id"))
-	if err != nil {
-		fail(w, err)
-		return
-	}
 	var b struct{ Model string }
 	if !readJSON(w, r, &b) {
 		return
 	}
 	m := strings.TrimSpace(b.Model)
 	if m == "" {
-		deleteSetting(modelKey(p.ID))
+		deleteSetting("claude_model")
 	} else if !modelRe.MatchString(m) {
 		writeErr(w, 400, "That doesn't look like a model name")
 		return
 	} else {
-		setSetting(modelKey(p.ID), m)
+		setSetting("claude_model", m)
 	}
 	writeJSON(w, map[string]any{"ok": true, "model": m})
 }

@@ -9,7 +9,6 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
-	"strconv"
 
 	_ "modernc.org/sqlite"
 )
@@ -107,7 +106,5 @@ func getSetting(k string) string {
 	return v
 }
 
-func modelKey(id int64) string { return "claude_model:" + strconv.FormatInt(id, 10) }
-
-// projectModel is the model new Claude sessions in a project start with ("" = Claude Code's own default).
-func projectModel(id int64) string { return getSetting(modelKey(id)) }
+// claudeModel is the model new Claude sessions start with ("" = Claude Code's own default).
+func claudeModel() string { return getSetting("claude_model") }
