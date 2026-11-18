@@ -26,7 +26,7 @@ First visit creates your account. Then: Settings (top right) → GitHub token �
 - Binds to localhost by default — this app can edit files on your machine; put real TLS/auth in front before exposing it.
 
 ## Docker
-The image is Debian + the Go server (serving the static UI) + `git` + GitHub CLI (`gh`) + Claude Code, one process on port 8080, running as non-root.
+The image is Debian + the Go server (serving the static UI) + `git` + GitHub CLI (`gh`) + Go + Node.js + Helm + Claude Code, one process on port 8080, running as non-root.
 
     docker build -t project-developer .                                  # add --platform linux/amd64 for most clusters
     docker run -p 8080:8080 -v pd-data:/data project-developer           # http://localhost:8080
