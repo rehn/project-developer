@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { api } from "@/lib/api";
 import HeaderBar from "@/components/HeaderBar";
 import ProjectTabs from "@/components/ProjectTabs";
+import FooterBar from "@/components/FooterBar";
 import { ProjectProvider } from "@/lib/ProjectContext";
 
 function Shell({ user, children }: { user: string; children: React.ReactNode }) {
@@ -12,6 +13,7 @@ function Shell({ user, children }: { user: string; children: React.ReactNode }) 
       <HeaderBar user={user} />
       <ProjectTabs />
       <main>{children}</main>
+      <FooterBar />
     </div>
   );
 }

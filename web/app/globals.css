@@ -1,4 +1,4 @@
-:root { --hdr:60px; --tabs:var(--tabs-h, 40px); --top:calc(var(--hdr) + var(--tabs)); --bg:#fff; --fg:#1b1f24; --muted:#6a737d; --card:#f6f8fa; --border:#d8dee4; --accent:#2f6feb; --green:#2da44e; --red:#cf222e; --screen:#0d1117; }
+:root { --hdr:60px; --tabs:var(--tabs-h, 40px); --ftr:44px; --top:calc(var(--hdr) + var(--tabs)); --bg:#fff; --fg:#1b1f24; --muted:#6a737d; --card:#f6f8fa; --border:#d8dee4; --accent:#2f6feb; --green:#2da44e; --red:#cf222e; --screen:#0d1117; }
 @media (prefers-color-scheme: dark) { :root { --bg:#0d1117; --fg:#e6edf3; --muted:#8b949e; --card:#161b22; --border:#30363d; --accent:#4c8dff; --screen:#010409; } }
 * { box-sizing: border-box; }
 body { margin:0; background:var(--bg); color:var(--fg); font:14px/1.5 system-ui,-apple-system,sans-serif; }
@@ -24,7 +24,7 @@ button.link { border:0; background:none; color:var(--accent); padding:4px 0; }
 .bars { display:flex; align-items:flex-end; gap:3px; height:140px; margin:12px 0; }
 .bar { flex:1; height:100%; display:flex; flex-direction:column; justify-content:flex-end; } .bar .in { background:var(--accent); } .bar .out { background:var(--green); }
 table { width:100%; border-collapse:collapse; } th,td { text-align:left; padding:6px 8px; border-top:1px solid var(--border); } th { color:var(--muted); font-weight:500; border:0; }
-.term { display:flex; flex-direction:column; height:calc(100vh - var(--top) - 48px); gap:10px; }
+.term { display:flex; flex-direction:column; height:calc(100vh - var(--top) - var(--ftr) - 48px); gap:10px; }
 .screen { flex:1; overflow:auto; background:var(--screen); color:#e6edf3; border-radius:8px; padding:12px; font:13px/1.5 ui-monospace,monospace; }
 .ln { white-space:pre-wrap; word-break:break-word; margin-bottom:6px; }
 .ln.user { color:#79c0ff; } .ln.tool { color:#d2a8ff; } .ln.result { color:#56d364; } .ln.error { color:#ff7b72; } .ln.info { color:#8b949e; }
@@ -33,7 +33,7 @@ table { width:100%; border-collapse:collapse; } th,td { text-align:left; padding
 .topbar { position:sticky; top:0; z-index:10; height:var(--hdr); display:flex; align-items:center; justify-content:space-between; gap:16px; padding:0 16px; background:var(--bg); border-bottom:1px solid var(--border); }
 .gauges { display:flex; gap:20px; align-items:center; min-width:0; flex-wrap:wrap; flex:1; justify-content:center; }
 .gauge { width:150px; font-size:12px; } .gauge .track { margin:3px 0 2px; height:6px; } .small { font-size:11px; }
-@media (max-width:700px) { :root { --hdr:0px; --tabs:0px; } .ptabs { height:auto; position:static; } .topbar { height:auto; padding:8px 16px; position:static; flex-wrap:wrap; } .gauges { justify-content:flex-start; } }
+@media (max-width:700px) { :root { --hdr:0px; --tabs:0px; --ftr:0px; } .ptabs { height:auto; position:static; } .topbar { height:auto; padding:8px 16px; position:static; flex-wrap:wrap; } .gauges { justify-content:flex-start; } }
 /* The terminal is absolutely positioned inside a box whose size comes only from the layout, so
    xterm's own size can never feed back into it (that caused the page to grow on every refit). */
 .xterm-host { flex:1; min-height:0; position:relative; background:#010409; border-radius:8px; overflow:hidden; }
@@ -41,7 +41,7 @@ table { width:100%; border-collapse:collapse; } th,td { text-align:left; padding
 
 /* project view: terminal (middle) + repo info panel (right); the left menu is the app sidebar */
 main:has(.project-view) { max-width:none; }
-.project-view { display:grid; grid-template-columns:minmax(0,1fr) 320px; grid-template-rows:minmax(0,1fr); gap:16px; height:calc(100vh - var(--top) - 48px); }
+.project-view { display:grid; grid-template-columns:minmax(0,1fr) 320px; grid-template-rows:minmax(0,1fr); gap:16px; height:calc(100vh - var(--top) - var(--ftr) - 48px); }
 .project-view > * { min-height:0; min-width:0; }
 .project-view > .term { height:100%; }
 .panel { overflow:auto; background:var(--card); border:1px solid var(--border); border-radius:8px; padding:14px; min-width:0; }
@@ -87,3 +87,8 @@ main:has(.project-view) { max-width:none; }
 .hdr-link:hover, .hdr-link.active { background:var(--card); }
 .ptab-add { align-self:center; flex-shrink:0; margin:0 0 4px 4px; width:26px; height:26px; display:grid; place-items:center; border-radius:6px; color:var(--muted); text-decoration:none; font-size:18px; line-height:1; }
 .ptab-add:hover, .ptab-add.active { background:var(--card); color:var(--fg); }
+
+/* footer: model picker */
+.footbar { min-height:var(--ftr); display:flex; align-items:center; gap:12px; flex-wrap:wrap; padding:6px 16px; border-top:1px solid var(--border); background:var(--bg); font-size:13px; }
+.footbar select, .footbar input, .footbar button { padding:3px 8px; } .footbar .error { margin:0; }
+@media (max-width:700px) { .footbar { min-height:0; } }

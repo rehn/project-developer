@@ -61,7 +61,7 @@ func handleGetSettings(w http.ResponseWriter, r *http.Request) {
 	if len(t) >= 4 {
 		hint = "…" + t[len(t)-4:]
 	}
-	writeJSON(w, map[string]any{"githubTokenSet": t != "", "githubTokenHint": hint})
+	writeJSON(w, map[string]any{"githubTokenSet": t != "", "githubTokenHint": hint, "model": claudeModel()})
 }
 
 func handleSetToken(w http.ResponseWriter, r *http.Request) {
@@ -302,4 +302,25 @@ func fetchDue(id int64) bool {
 
 func contextTimeout(r *http.Request, d time.Duration) (context.Context, context.CancelFunc) {
 	return context.WithTimeout(r.Context(), d)
+}
+
+// PUT /api/settings/model {model} sets the model new Claude sessions start with; "" means Claude Code's default.
+// Accepts an alias (opus, sonnet, haiku, …) or a full model ID.
+var modelRe = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._:\[\]-]{0,79}$`)
+
+func handleSetModel(w http.ResponseWriter, r *http.Request) {
+	var b struct{ Model string }
+	if !readJSON(w, r, &b) {
+		return
+	}
+	m := strings.TrimSpace(b.Model)
+	if m == "" {
+		deleteSetting("claude_model")
+	} else if !modelRe.MatchString(m) {
+		writeErr(w, 400, "That doesn't look like a model name")
+		return
+	} else {
+		setSetting("claude_model", m)
+	}
+	writeJSON(w, map[string]any{"ok": true, "model": m})
 }
