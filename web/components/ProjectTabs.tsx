@@ -41,6 +41,9 @@ export default function ProjectTabs() {
   return (
     <div className="ptabs" ref={bar}>
       <div className="ptabs-scroll" role="tablist">
+        <div className={`ptab ${path.startsWith("/general") ? "active" : ""}`}>
+          <Link role="tab" aria-selected={path.startsWith("/general")} className="ptab-name ptab-general" href="/general" title="Claude session not tied to any project">General</Link>
+        </div>
         {!projects.length && <span className="muted small">No projects yet — <Link href="/projects">add one</Link></span>}
         {!!projects.length && !visible.length && <span className="muted small">All projects are hidden</span>}
         {visible.map((p) => {

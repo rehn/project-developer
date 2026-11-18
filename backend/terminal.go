@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strconv"
 	"sync"
 
@@ -116,11 +117,23 @@ func sessionTarget(r *http.Request) (key, dir string, args []string, err error) 
 		home, _ := os.UserHomeDir()
 		return "login", home, []string{"auth", "login"}, nil
 	}
+	cont := r.URL.Query().Get("continue") == "1"
+	if p == "general" {
+		// Not tied to any project: runs in its own scratch directory on the data volume.
+		dir = filepath.Join(dataDir, "general")
+		if err = os.MkdirAll(dir, 0o755); err != nil {
+			return
+		}
+		if cont {
+			args = []string{"--continue"}
+		}
+		return "general", dir, args, nil
+	}
 	proj, err := getProject(p)
 	if err != nil {
 		return
 	}
-	if r.URL.Query().Get("continue") == "1" {
+	if cont {
 		args = []string{"--continue"}
 	}
 	if m := proj.Model; m != "" {
