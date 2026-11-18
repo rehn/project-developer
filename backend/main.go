@@ -56,6 +56,8 @@ func main() {
 	priv.HandleFunc("POST /api/projects", handleAddProject)
 	priv.HandleFunc("DELETE /api/projects/{id}", handleDeleteProject)
 	priv.HandleFunc("PUT /api/projects/{id}/model", handleSetModel)
+	priv.HandleFunc("GET /api/general/model", handleGetGeneralModel)
+	priv.HandleFunc("PUT /api/general/model", handleSetGeneralModel)
 	priv.HandleFunc("POST /api/projects/{id}/pull", handlePull)
 	priv.HandleFunc("GET /api/projects/{id}/status", handleStatus)
 	priv.HandleFunc("GET /api/projects/{id}/info", handleProjectInfo)

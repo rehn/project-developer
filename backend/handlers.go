@@ -322,18 +322,31 @@ func handleSetModel(w http.ResponseWriter, r *http.Request) {
 		fail(w, err)
 		return
 	}
+	saveModel(w, r, modelKey(p.ID))
+}
+
+// GET/PUT /api/general/model: the same for the General tab's session.
+func handleGetGeneralModel(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, map[string]any{"model": getSetting(generalModelKey)})
+}
+
+func handleSetGeneralModel(w http.ResponseWriter, r *http.Request) {
+	saveModel(w, r, generalModelKey)
+}
+
+func saveModel(w http.ResponseWriter, r *http.Request, key string) {
 	var b struct{ Model string }
 	if !readJSON(w, r, &b) {
 		return
 	}
 	m := strings.TrimSpace(b.Model)
 	if m == "" {
-		deleteSetting(modelKey(p.ID))
+		deleteSetting(key)
 	} else if !modelRe.MatchString(m) {
 		writeErr(w, 400, "That doesn't look like a model name")
 		return
 	} else {
-		setSetting(modelKey(p.ID), m)
+		setSetting(key, m)
 	}
 	writeJSON(w, map[string]any{"ok": true, "model": m})
 }
