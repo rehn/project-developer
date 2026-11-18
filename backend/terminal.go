@@ -123,7 +123,7 @@ func sessionTarget(r *http.Request) (key, dir string, args []string, err error) 
 	if r.URL.Query().Get("continue") == "1" {
 		args = []string{"--continue"}
 	}
-	if m := claudeModel(); m != "" {
+	if m := proj.Model; m != "" {
 		args = append([]string{"--model", m}, args...)
 	}
 	return "p" + p, proj.Dir, args, nil
