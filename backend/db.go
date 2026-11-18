@@ -99,3 +99,12 @@ func githubToken() string {
 	t, _ := decrypt(v)
 	return t
 }
+
+func getSetting(k string) string {
+	var v string
+	db.QueryRow(`SELECT value FROM settings WHERE key=?`, k).Scan(&v)
+	return v
+}
+
+// claudeModel is the model new Claude sessions start with ("" = Claude Code's own default).
+func claudeModel() string { return getSetting("claude_model") }

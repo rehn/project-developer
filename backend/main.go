@@ -50,6 +50,7 @@ func main() {
 	priv.HandleFunc("POST /api/auth/password", handlePassword)
 	priv.HandleFunc("GET /api/settings", handleGetSettings)
 	priv.HandleFunc("PUT /api/settings/github-token", handleSetToken)
+	priv.HandleFunc("PUT /api/settings/model", handleSetModel)
 	priv.HandleFunc("GET /api/github/repos", handleRepos)
 	priv.HandleFunc("GET /api/projects", handleListProjects)
 	priv.HandleFunc("POST /api/projects", handleAddProject)
