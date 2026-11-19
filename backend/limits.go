@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"sync"
 	"time"
 )
@@ -35,6 +36,8 @@ var (
 	limitsMu    sync.Mutex
 	limitsAt    time.Time
 	limitsCache map[string]any
+	limitsErr   string    // last upstream failure, cleared on success
+	limitsRetry time.Time // no upstream calls before this time
 )
 
 func readClaudeOAuth() (token string, expiresAt time.Time, err error) {
@@ -83,7 +86,19 @@ func fetchLimits() (map[string]any, error) {
 	}
 	defer res.Body.Close()
 	if res.StatusCode != 200 {
-		return nil, errors.New("Anthropic usage endpoint returned " + res.Status)
+		// Honour Retry-After; a 429 never retries sooner than 5 minutes (the endpoint is strict and
+		// hammering it only prolongs the block).
+		var wait time.Duration
+		if n, err := strconv.Atoi(res.Header.Get("Retry-After")); err == nil && n > 0 {
+			wait = time.Duration(n) * time.Second
+		}
+		if res.StatusCode == http.StatusTooManyRequests && wait < 5*time.Minute {
+			wait = 5 * time.Minute
+		}
+		if wait > 30*time.Minute {
+			wait = 30 * time.Minute
+		}
+		return nil, &limitsError{"Anthropic usage endpoint returned " + res.Status, wait}
 	}
 	var shadow struct {
 		FiveHour       *window2 `json:"five_hour"`
@@ -123,16 +138,49 @@ type window2 struct {
 	ResetsAt    string  `json:"resets_at"`
 }
 
+// limitsError is a failed upstream call that also says how long to leave the endpoint alone.
+type limitsError struct {
+	msg  string
+	wait time.Duration
+}
+
+func (e *limitsError) Error() string { return e.msg }
+
+const (
+	limitsTTL        = 5 * time.Minute // fresh data is reused this long, however many tabs poll (plan usage moves slowly)
+	limitsErrBackoff = time.Minute     // default pause after a failure
+)
+
 func handleLimits(w http.ResponseWriter, r *http.Request) {
 	limitsMu.Lock()
 	defer limitsMu.Unlock()
-	if limitsCache == nil || time.Since(limitsAt) > 60*time.Second {
+	now := time.Now()
+	// Failures are remembered too: while backing off, the upstream isn't called at all.
+	if now.After(limitsRetry) && (limitsCache == nil || now.Sub(limitsAt) > limitsTTL) {
 		data, err := fetchLimits()
 		if err != nil {
-			writeJSON(w, map[string]any{"error": err.Error()}) // 200: the page shows this inline
-			return
+			wait := limitsErrBackoff
+			var le *limitsError
+			if errors.As(err, &le) && le.wait > 0 {
+				wait = le.wait
+			}
+			limitsErr, limitsRetry = err.Error(), now.Add(wait)
+		} else {
+			limitsCache, limitsAt, limitsErr, limitsRetry = data, now, "", time.Time{}
 		}
-		limitsCache, limitsAt = data, time.Now()
 	}
-	writeJSON(w, limitsCache)
+	if limitsErr == "" {
+		writeJSON(w, limitsCache)
+		return
+	}
+	if limitsCache == nil {
+		writeJSON(w, map[string]any{"error": limitsErr}) // 200: the page shows this inline
+		return
+	}
+	// Keep showing the last known values, flagged as stale.
+	out := map[string]any{"stale": limitsErr, "staleSince": limitsAt.UTC().Format(time.RFC3339)}
+	for k, v := range limitsCache {
+		out[k] = v
+	}
+	writeJSON(w, out)
 }

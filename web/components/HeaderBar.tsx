@@ -31,7 +31,7 @@ export default function HeaderBar({ user }: { user: string }) {
   useEffect(() => {
     const load = () => api("/usage/limits").then(setL).catch((e) => setL({ error: e.message }));
     load();
-    const t = setInterval(load, 60_000);
+    const t = setInterval(load, 5 * 60_000); // usage moves slowly; the backend caches too
     window.addEventListener("pd:auth-changed", load);
     return () => { clearInterval(t); window.removeEventListener("pd:auth-changed", load); };
   }, []);
@@ -45,7 +45,8 @@ export default function HeaderBar({ user }: { user: string }) {
       <h1 className="brand"><Link href="/terminal"><Logo size={28} /> Project Developer</Link></h1>
       <div className="gauges">
         {!l && <span className="muted small">Loading usage…</span>}
-        {l?.error && <span className="muted small" title={l.error}>Plan usage unavailable — {l.error}</span>}
+        {l?.stale && <span className="muted small" title={`${l.stale} — showing the last known values`}>⚠ stale</span>}
+        {l?.error &&<span className="muted small" title={l.error}>Plan usage unavailable — {l.error}</span>}
         {l?.fiveHour && <Gauge label="Session (5h)" pct={l.fiveHour.utilization} detail={`resets in ${resetIn(l.fiveHour.resetsAt)}`} />}
         {l?.sevenDay && <Gauge label="Weekly" pct={l.sevenDay.utilization} detail={`resets in ${resetIn(l.sevenDay.resetsAt)}`} />}
         {x && <Gauge label="Extra usage" pct={x.utilization} detail={`${money(x.used)} / ${money(x.monthlyLimit)}`} />}
