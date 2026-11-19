@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useProjects } from "@/lib/ProjectContext";
+import { useTasks } from "@/lib/useTasks";
 
 /** One tab per project under the header; tabs wrap onto more rows so every project stays visible.
  *  Tabs can be hidden (×) and brought back from the "hidden" menu;
@@ -10,6 +11,7 @@ import { useProjects } from "@/lib/ProjectContext";
 export default function ProjectTabs() {
   const { projects, selected, select: pick, hidden, hide, unhide } = useProjects();
   const router = useRouter();
+  const { tasks } = useTasks();
   const path = usePathname();
   // A project lives in the terminal view, so picking one from another page goes there.
   const select = (id: number) => { pick(id); if (!path.startsWith("/terminal")) router.push("/terminal"); };
@@ -50,7 +52,7 @@ export default function ProjectTabs() {
           const active = onTerminal && p.id === selected?.id;
           return (
             <div key={p.id} className={`ptab ${active ? "active" : ""}`}>
-              <button role="tab" aria-selected={active} className="ptab-name" onClick={() => select(p.id)} title={p.repoUrl}>{p.name}</button>
+              <button role="tab" aria-selected={active} className="ptab-name" onClick={() => select(p.id)} title={p.repoUrl}>{p.name}{tasks.some((t) => t.toProject === p.id) && <span className="ptab-badge" title="Task requests waiting for approval">{tasks.filter((t) => t.toProject === p.id).length}</span>}</button>
               <button className="ptab-x" onClick={() => hide(p.id)} title={`Hide ${p.name}`} aria-label={`Hide ${p.name}`}>×</button>
             </div>
           );

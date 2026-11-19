@@ -1,6 +1,7 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
 import { api, type Project } from "@/lib/api";
+import { useTasks } from "@/lib/useTasks";
 
 function ago(iso?: string | null) {
   if (!iso) return "";
@@ -35,6 +36,17 @@ export default function ProjectPanel({ project }: { project: Project }) {
   const [tagName, setTagName] = useState("");
   const [tagging, setTagging] = useState(false);
   const [tagMsg, setTagMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const { tasks, reload: reloadTasks } = useTasks();
+  const mine = tasks.filter((t) => t.toProject === project.id);
+  const [taskMsg, setTaskMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  async function decide(t: { id: number; from: string }, approve: boolean) {
+    setTaskMsg(null);
+    try {
+      const r = await api(`/tasks/${t.id}/${approve ? "approve" : "reject"}`, { body: {} });
+      setTaskMsg({ ok: true, text: approve ? (r.started ? "Approved — started a session with the task. Open the terminal to follow it." : "Approved — sent to the running session.") : "Rejected" });
+    } catch (e: any) { setTaskMsg({ ok: false, text: e.message }); }
+    reloadTasks();
+  }
 
   const load = useCallback(() => {
     setBusy(true);
@@ -115,6 +127,25 @@ export default function ProjectPanel({ project }: { project: Project }) {
                   {info.repo.description && <div className="muted">{info.repo.description}</div>}</>
               : <div className="muted">{info.project.isGithub ? "GitHub details unavailable" : "Not a GitHub repository"}</div>}
           </section>
+
+          {(mine.length > 0 || taskMsg) && (
+            <section>
+              <h4>Task requests <span className="tag warn">{mine.length}</span></h4>
+              <ul className="list tight">
+                {mine.map((t) => (
+                  <li key={t.id}><div>
+                    <b>From {t.from}</b>
+                    <div className="muted small taskbody">{t.body}</div>
+                    <div className="row" style={{ marginTop: 6 }}>
+                      <button className="primary small-btn" onClick={() => decide(t, true)}>Approve</button>
+                      <button className="small-btn" onClick={() => decide(t, false)}>Reject</button>
+                    </div>
+                  </div></li>
+                ))}
+              </ul>
+              {taskMsg && <div className={`${taskMsg.ok ? "ok" : "error"} small`}>{taskMsg.text}</div>}
+            </section>
+          )}
 
           <section>
             <h4>Commit</h4>

@@ -39,6 +39,7 @@ type askSess struct {
 	callerName string
 	asked      int
 	limit      int
+	tasks      int // task requests made this session
 }
 
 var (
@@ -88,7 +89,8 @@ func withMCP(key string, args []string) ([]string, string) {
 		"headers": map[string]string{"Authorization": "Bearer " + tok},
 	}}})
 	// Pre-approve the server's tools so Claude doesn't prompt on every question.
-	pre := []string{"--mcp-config", string(cfg), "--allowedTools", "mcp__projects"}
+	// "=" forms: both flags are variadic and would otherwise swallow a following positional prompt.
+	pre := []string{"--mcp-config=" + string(cfg), "--allowedTools=mcp__projects"}
 	return append(pre, args...), tok
 }
 
@@ -150,6 +152,18 @@ func handleMCP(w http.ResponseWriter, r *http.Request) {
 				"inputSchema": map[string]any{"type": "object", "properties": map[string]any{}},
 			},
 			map[string]any{
+				"name": "request_task",
+				"description": fmt.Sprintf("Ask the user to have another project's agent do some work (e.g. add an endpoint your project needs). It does NOT run anything: the request is queued, and only if the user approves it is it typed into that project's own session. You get no result back, so describe the task completely and self-contained, then carry on and tell the user you requested it. At most %d requests per session; use ask_project for questions.", taskLimit()),
+				"inputSchema": map[string]any{
+					"type": "object",
+					"properties": map[string]any{
+						"project": map[string]any{"type": "string", "description": "Project name (see list_projects)"},
+						"task":    map[string]any{"type": "string", "description": "What the other agent should do, with all needed context and acceptance criteria"},
+					},
+					"required": []string{"project", "task"},
+				},
+			},
+			map[string]any{
 				"name": "ask_project",
 				"description": fmt.Sprintf("Ask the Claude agent of another project a question (e.g. how its API behaves, what a field means, whether an endpoint exists). "+
 					"It answers read-only from that project's code and docs and cannot change anything. Be specific and self-contained. "+
@@ -170,6 +184,7 @@ func handleMCP(w http.ResponseWriter, r *http.Request) {
 			Arguments struct {
 				Project  string `json:"project"`
 				Question string `json:"question"`
+				Task     string `json:"task"`
 			} `json:"arguments"`
 		}
 		if json.Unmarshal(req.Params, &p) != nil {
@@ -183,6 +198,8 @@ func handleMCP(w http.ResponseWriter, r *http.Request) {
 			text = listOtherProjects(s)
 		case "ask_project":
 			text, err = askProject(r.Context(), s, p.Arguments.Project, p.Arguments.Question)
+		case "request_task":
+			text, err = requestTask(s, p.Arguments.Project, p.Arguments.Task)
 		default:
 			err = errors.New("Unknown tool " + p.Name)
 		}
@@ -214,14 +231,7 @@ func askProject(ctx context.Context, s *askSess, name, question string) (string,
 	if name == "" || question == "" {
 		return "", errors.New("Both project and question are required.")
 	}
-	var target *project
-	for _, p := range allProjects() {
-		if strings.EqualFold(p.Name, name) || strconv.FormatInt(p.ID, 10) == name {
-			p := p
-			target = &p
-			break
-		}
-	}
+	target := findProject(name)
 	if target == nil {
 		return "", fmt.Errorf("No project named %q. Use list_projects to see the options.", name)
 	}
@@ -295,4 +305,14 @@ func runAsk(parent context.Context, target project, callerName, question string)
 		out = out[:30000] + "\n…(truncated)"
 	}
 	return out, nil
+}
+
+func findProject(name string) *project {
+	for _, p := range allProjects() {
+		if strings.EqualFold(p.Name, name) || strconv.FormatInt(p.ID, 10) == name {
+			p := p
+			return &p
+		}
+	}
+	return nil
 }
