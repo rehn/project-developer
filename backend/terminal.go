@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"sync"
+	"time"
 
 	"github.com/creack/pty"
 	"github.com/gorilla/websocket"
@@ -23,7 +24,23 @@ type client struct {
 	mu sync.Mutex
 }
 
-func (c *client) write(typ int, b []byte) { c.mu.Lock(); c.ws.WriteMessage(typ, b); c.mu.Unlock() }
+const (
+	writeWait = 10 * time.Second // a client that can't take data this long is dropped
+	pingEvery = 20 * time.Second // keeps idle proxies from closing the socket, and detects dead peers
+	pongWait  = 60 * time.Second
+)
+
+// write sends to one browser. It never blocks for long: output is broadcast from the PTY reader,
+// so a stalled connection must not be allowed to stall Claude itself. On failure the socket is
+// closed, which ends that client's read loop and removes it from the session.
+func (c *client) write(typ int, b []byte) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.ws.SetWriteDeadline(time.Now().Add(writeWait))
+	if err := c.ws.WriteMessage(typ, b); err != nil {
+		c.ws.Close()
+	}
+}
 
 type session struct {
 	mu      sync.Mutex
@@ -185,7 +202,24 @@ func handleTerminalWS(w http.ResponseWriter, r *http.Request) {
 	if len(replay) > 0 {
 		c.write(websocket.BinaryMessage, replay)
 	}
+	// Ping regularly; the browser answers automatically. No traffic for pongWait means the peer is gone.
+	ws.SetReadDeadline(time.Now().Add(pongWait))
+	ws.SetPongHandler(func(string) error { ws.SetReadDeadline(time.Now().Add(pongWait)); return nil })
+	done := make(chan struct{})
+	go func() {
+		t := time.NewTicker(pingEvery)
+		defer t.Stop()
+		for {
+			select {
+			case <-t.C:
+				c.write(websocket.PingMessage, nil)
+			case <-done:
+				return
+			}
+		}
+	}()
 	defer func() {
+		close(done)
 		s.mu.Lock()
 		delete(s.clients, c)
 		s.mu.Unlock()
@@ -196,6 +230,7 @@ func handleTerminalWS(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			return
 		}
+		ws.SetReadDeadline(time.Now().Add(pongWait))
 		if typ == websocket.BinaryMessage {
 			s.ptmx.Write(data) // keystrokes
 		} else {
