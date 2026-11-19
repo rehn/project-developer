@@ -78,6 +78,7 @@ func startPTY(key, dir string, args []string, cols, rows uint16) (*session, erro
 	cmd := exec.Command(bin, args...)
 	cmd.Dir = dir
 	cmd.Env = append(os.Environ(), "TERM=xterm-256color", "COLORTERM=truecolor")
+	cmd.Env = append(cmd.Env, kubeEnv()...)
 	if tok := githubToken(); tok != "" {
 		// Lets `gh` and `git push` inside the session use the token saved in Settings.
 		cmd.Env = append(cmd.Env, "GH_TOKEN="+tok, "GITHUB_TOKEN="+tok,

@@ -23,12 +23,13 @@ First visit creates your account. Then: Settings (top right) → GitHub token �
 - Header gauges: plan limits (5-hour / weekly %) come live from Anthropic via your Claude Code login (undocumented endpoint, read-only, token never leaves the backend).
 - Footer: pick the model new Claude sessions in the selected project start with (stored per project) (Default, Opus, Sonnet, Haiku, Fable, or any alias/model ID under "Other…"); it is passed as `claude --model`. Restart a running session to switch.
 - The Terminal page is a real interactive Claude Code session (PTY + xterm.js) in the project checkout, with Claude's own permission prompts and slash commands. Sessions keep running when you leave the page or reload, and reattach with recent output replayed. If you are signed out it offers "Sign in with Claude" (runs `claude auth login`). The CLI is found via `CLAUDE_BIN`, `PATH`, common install paths, or the copy bundled with the VS Code extension.
+- Settings → Kubernetes access: upload or paste a kubeconfig and `kubectl` works in every Claude session (`$KUBECONFIG` points at a file on the data volume). It works for any reachable cluster, including the one the app itself runs in; restart running sessions to pick it up.
 - Projects can ask each other questions: every Claude session gets an `ask_project` tool (and `list_projects`) that runs a one-shot, read-only Claude in the other project's checkout and returns its answer, e.g. the API consumer asking the API builder. Each session may ask `ASK_LIMIT` questions (default 10; restarting the session resets it).
 - Agents can also ask for work to be done in another project with `request_task`. Nothing runs by itself: the request shows up as a badge on that project's tab and under "Task requests" in its panel, and only when you click Approve is it typed into that project's own Claude session (a new one is started if none is running). Limit per session: `TASK_LIMIT` (default 3); at most 5 requests wait per project.
 - Binds to localhost by default — this app can edit files on your machine; put real TLS/auth in front before exposing it.
 
 ## Docker
-The image is Debian + the Go server (serving the static UI) + `git` + GitHub CLI (`gh`) + Go + Node.js + Python + Helm + Claude Code, one process on port 8080, running as non-root.
+The image is Debian + the Go server (serving the static UI) + `git` + GitHub CLI (`gh`) + Go + Node.js + Python + Helm + kubectl + Claude Code, one process on port 8080, running as non-root.
 
     docker build -t project-developer .                                  # add --platform linux/amd64 for most clusters
     docker run -p 8080:8080 -v pd-data:/data project-developer           # http://localhost:8080
