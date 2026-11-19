@@ -71,28 +71,55 @@ export default function TermView({ target, cont, onExit }: { target: string; con
       term.open(el);
       fit.fit();
 
-      const qs = new URLSearchParams({ project: target, cols: String(term.cols), rows: String(term.rows) });
-      if (cont) qs.set("continue", "1");
-      const ws = new WebSocket(`${wsBase()}/api/terminal?${qs}`);
-      ws.binaryType = "arraybuffer";
       const enc = new TextEncoder();
       let ended = false;
+      let ws: WebSocket | null = null;
+      let retry = 0;
+      let timer: ReturnType<typeof setTimeout> | undefined;
 
-      ws.onmessage = (e) => {
-        if (typeof e.data === "string") {
-          try {
-            const m = JSON.parse(e.data);
-            if (m.type === "exit") { ended = true; term.write(`\r\n\x1b[90m[session ended]\x1b[0m\r\n`); onExit?.(m.code); }
-          } catch {}
-        } else term.write(new Uint8Array(e.data));
+      // Connects (and, if the connection drops, reconnects with backoff). The server keeps the session
+      // alive and replays its recent output, so the screen is reset first to avoid showing it twice.
+      const connect = () => {
+        const qs = new URLSearchParams({ project: target, cols: String(term.cols), rows: String(term.rows) });
+        if (cont) qs.set("continue", "1");
+        const sock = new WebSocket(`${wsBase()}/api/terminal?${qs}`);
+        ws = sock;
+        sock.binaryType = "arraybuffer";
+        let first = true;
+        sock.onmessage = (e) => {
+          if (typeof e.data === "string") {
+            try {
+              const m = JSON.parse(e.data);
+              if (m.type === "exit") { ended = true; term.write(`\r\n\x1b[90m[session ended]\x1b[0m\r\n`); onExit?.(m.code); }
+            } catch {}
+          } else {
+            if (first) { first = false; retry = 0; if (reconnected) term.reset(); }
+            term.write(new Uint8Array(e.data));
+          }
+        };
+        sock.onclose = () => {
+          if (ws !== sock) return;
+          typeIn.current = null;
+          if (ended || disposed) return;
+          reconnected = true;
+          const wait = Math.min(1000 * 2 ** retry++, 10_000);
+          term.write(`\r\n\x1b[90m[connection lost — reconnecting…]\x1b[0m\r\n`);
+          timer = setTimeout(connect, wait);
+        };
+        sock.onopen = () => {
+          typeIn.current = (s) => { send(term.modes.bracketedPasteMode ? `\x1b[200~${s}\x1b[201~` : s); term.focus(); };
+        };
       };
-      ws.onclose = () => { typeIn.current = null; if (!ended && !disposed) term.write("\r\n\x1b[90m[disconnected — reload to reattach]\x1b[0m\r\n"); };
-      const send = (d: string) => ws.readyState === WebSocket.OPEN && ws.send(enc.encode(d));
+      let reconnected = false;
+      const send = (d: string) => ws?.readyState === WebSocket.OPEN && ws.send(enc.encode(d));
       term.onData(send);
-      // Bracketed paste when the app asked for it, so Claude Code treats the path like a pasted file.
-      typeIn.current = (s) => { send(term.modes.bracketedPasteMode ? `\x1b[200~${s}\x1b[201~` : s); term.focus(); };
-      const sendSize = () => ws.readyState === WebSocket.OPEN && ws.send(JSON.stringify({ type: "resize", cols: term.cols, rows: term.rows }));
+      const sendSize = () => ws?.readyState === WebSocket.OPEN && ws.send(JSON.stringify({ type: "resize", cols: term.cols, rows: term.rows }));
       term.onResize(sendSize);
+      connect();
+      // Coming back to a tab (or the network) after a pause: don't wait out the backoff.
+      const onWake = () => { if (!ended && !disposed && ws?.readyState === WebSocket.CLOSED) { clearTimeout(timer); retry = 0; connect(); } };
+      window.addEventListener("online", onWake);
+      document.addEventListener("visibilitychange", onWake);
       const ro = new ResizeObserver(() => { try { fit.fit(); } catch {} });
       ro.observe(el);
 
@@ -106,7 +133,7 @@ export default function TermView({ target, cont, onExit }: { target: string; con
       el.addEventListener("paste", onPaste, true);
       term.focus();
 
-      cleanup = () => { el.removeEventListener("paste", onPaste, true); ro.disconnect(); ws.close(); term.dispose(); typeIn.current = null; };
+      cleanup = () => { clearTimeout(timer); window.removeEventListener("online", onWake); document.removeEventListener("visibilitychange", onWake); el.removeEventListener("paste", onPaste, true); ro.disconnect(); ws?.close(); term.dispose(); typeIn.current = null; };
     })();
     return () => { disposed = true; cleanup(); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
