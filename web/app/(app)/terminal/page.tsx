@@ -49,7 +49,7 @@ function ProjectTerminal({ auth }: { auth: Auth }) {
         <TermView key={`${key}-${nonce}`} target={String(selected.id)} cont={cont} onExit={() => { setEnded(true); refreshLive(); }} />
         {ended && <div className="row"><span className="muted">Session ended.</span><button className="primary" onClick={restart}>Start new session</button></div>}
       </div>
-      <ProjectPanel project={selected} />
+      <ProjectPanel key={selected.id} project={selected} />
     </div>
   );
 }
