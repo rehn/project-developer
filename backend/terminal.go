@@ -74,6 +74,7 @@ func startPTY(key, dir string, args []string, cols, rows uint16) (*session, erro
 	if !ok {
 		return nil, &httpErr{500, "Claude Code CLI not found. Install it (https://claude.com/claude-code) or set CLAUDE_BIN."}
 	}
+	args, askTok := withMCP(key, args)
 	cmd := exec.Command(bin, args...)
 	cmd.Dir = dir
 	cmd.Env = append(os.Environ(), "TERM=xterm-256color", "COLORTERM=truecolor")
@@ -85,6 +86,7 @@ func startPTY(key, dir string, args []string, cols, rows uint16) (*session, erro
 	}
 	ptmx, err := pty.StartWithSize(cmd, &pty.Winsize{Cols: cols, Rows: rows})
 	if err != nil {
+		unregisterAsk(askTok)
 		return nil, err
 	}
 	s := &session{ptmx: ptmx, cmd: cmd, clients: map[*client]bool{}}
@@ -114,6 +116,7 @@ func startPTY(key, dir string, args []string, cols, rows uint16) (*session, erro
 			}
 		}
 		ptmx.Close()
+		unregisterAsk(askTok)
 		s.mu.Lock()
 		s.exited = true
 		s.mu.Unlock()
