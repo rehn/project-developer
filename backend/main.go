@@ -78,6 +78,7 @@ func main() {
 		}
 		writeJSON(w, map[string]bool{"ok": true})
 	})
+	root.HandleFunc("/mcp", handleMCP) // project questions for Claude sessions; own bearer-token auth
 	root.Handle("/api/auth/password", requireAuth(priv))
 	root.Handle("/api/auth/", pub)
 	root.Handle("/api/", requireAuth(priv))
