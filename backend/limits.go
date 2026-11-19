@@ -147,7 +147,7 @@ type limitsError struct {
 func (e *limitsError) Error() string { return e.msg }
 
 const (
-	limitsTTL        = 2 * time.Minute // fresh data is reused this long, however many tabs poll
+	limitsTTL        = 5 * time.Minute // fresh data is reused this long, however many tabs poll (plan usage moves slowly)
 	limitsErrBackoff = time.Minute     // default pause after a failure
 )
 

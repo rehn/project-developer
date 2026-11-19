@@ -31,7 +31,7 @@ export default function HeaderBar({ user }: { user: string }) {
   useEffect(() => {
     const load = () => api("/usage/limits").then(setL).catch((e) => setL({ error: e.message }));
     load();
-    const t = setInterval(load, 60_000);
+    const t = setInterval(load, 5 * 60_000); // usage moves slowly; the backend caches too
     window.addEventListener("pd:auth-changed", load);
     return () => { clearInterval(t); window.removeEventListener("pd:auth-changed", load); };
   }, []);
