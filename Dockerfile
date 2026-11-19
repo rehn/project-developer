@@ -27,8 +27,9 @@ RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build -trimpath -ldflags=
 FROM golang:1.26-bookworm AS go-toolchain
 FROM node:22-bookworm-slim AS node-toolchain
 FROM alpine/helm:3.19.0 AS helm-toolchain
+FROM registry.k8s.io/kubectl:v1.34.1 AS kubectl-toolchain
 
-# ---- 4. Runtime: Debian + git + GitHub CLI + Go + Node.js + Python + Helm + Claude Code ----
+# ---- 4. Runtime: Debian + git + GitHub CLI + Go + Node.js + Python + Helm + kubectl + Claude Code ----
 FROM debian:bookworm-slim
 # Pin Claude Code; bump to upgrade (see https://claude.com/claude-code).
 ARG CLAUDE_CODE_VERSION=2.1.326
@@ -58,6 +59,10 @@ RUN ln -s ../lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm \
 # Helm (statically linked, so the binary from the Alpine-based image runs fine on Debian).
 COPY --from=helm-toolchain /usr/bin/helm /usr/local/bin/helm
 RUN helm version --short
+
+# kubectl (static Go binary from the official image; multi-arch). Cluster access comes from a kubeconfig uploaded in Settings.
+COPY --from=kubectl-toolchain /bin/kubectl /usr/local/bin/kubectl
+RUN kubectl version --client
 
 # Claude Code (native installer), installed system-wide so a mounted volume can't hide it.
 RUN HOME=/tmp/claude-install curl -fsSL https://claude.ai/install.sh | HOME=/tmp/claude-install bash -s "${CLAUDE_CODE_VERSION}" \

@@ -61,7 +61,9 @@ func handleGetSettings(w http.ResponseWriter, r *http.Request) {
 	if len(t) >= 4 {
 		hint = "…" + t[len(t)-4:]
 	}
-	writeJSON(w, map[string]any{"githubTokenSet": t != "", "githubTokenHint": hint})
+	out := kubeInfo()
+	out["githubTokenSet"], out["githubTokenHint"] = t != "", hint
+	writeJSON(w, out)
 }
 
 func handleSetToken(w http.ResponseWriter, r *http.Request) {
