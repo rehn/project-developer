@@ -75,7 +75,7 @@ func unregisterAsk(tok string) {
 
 // withMCP prepends the flags that give a session access to the project-questions tools.
 func withMCP(key string, args []string) ([]string, string) {
-	if key == "login" {
+	if key == "login" || strings.HasPrefix(key, "sh") { // no Claude here
 		return args, ""
 	}
 	tok := registerAsk(key)

@@ -22,7 +22,7 @@ async function uploadImage(f: File): Promise<string> {
 
 /** xterm.js attached to a server-side PTY running Claude Code. Images can be pasted, dropped or attached:
  *  they are uploaded to the server and their path is typed into the prompt. */
-export default function TermView({ target, cont, onExit }: { target: string; cont?: boolean; onExit?: (code: number) => void }) {
+export default function TermView({ target, cont, shell, onExit }: { target: string; cont?: boolean; shell?: boolean; onExit?: (code: number) => void }) {
   const host = useRef<HTMLDivElement>(null);
   const picker = useRef<HTMLInputElement>(null);
   // Types text into the PTY as a paste; set once the socket is up.
@@ -82,6 +82,7 @@ export default function TermView({ target, cont, onExit }: { target: string; con
       const connect = () => {
         const qs = new URLSearchParams({ project: target, cols: String(term.cols), rows: String(term.rows) });
         if (cont) qs.set("continue", "1");
+        if (shell) qs.set("mode", "shell");
         const sock = new WebSocket(`${wsBase()}/api/terminal?${qs}`);
         ws = sock;
         sock.binaryType = "arraybuffer";
@@ -137,7 +138,7 @@ export default function TermView({ target, cont, onExit }: { target: string; con
     })();
     return () => { disposed = true; cleanup(); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [target, cont]);
+  }, [target, cont, shell]);
 
   const hasFiles = (e: React.DragEvent) => Array.from(e.dataTransfer.types).includes("Files");
   return (

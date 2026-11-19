@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -71,6 +72,9 @@ func (s *session) broadcast(typ int, b []byte) {
 
 func startPTY(key, dir string, args []string, cols, rows uint16) (*session, error) {
 	bin, ok := findClaude()
+	if strings.HasPrefix(key, "sh") { // plain shell in the project checkout (editor view)
+		bin, ok = shellBin(), true
+	}
 	if !ok {
 		return nil, &httpErr{500, "Claude Code CLI not found. Install it (https://claude.com/claude-code) or set CLAUDE_BIN."}
 	}
@@ -137,6 +141,13 @@ func sessionTarget(r *http.Request) (key, dir string, args []string, err error) 
 	if p == "login" {
 		home, _ := os.UserHomeDir()
 		return "login", home, []string{"auth", "login"}, nil
+	}
+	if r.URL.Query().Get("mode") == "shell" {
+		var proj project
+		if proj, err = getProject(p); err != nil {
+			return
+		}
+		return "sh" + p, proj.Dir, nil, nil
 	}
 	cont := r.URL.Query().Get("continue") == "1"
 	if p == "general" {
