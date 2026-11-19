@@ -45,7 +45,8 @@ export default function HeaderBar({ user }: { user: string }) {
       <h1 className="brand"><Link href="/terminal"><Logo size={28} /> Project Developer</Link></h1>
       <div className="gauges">
         {!l && <span className="muted small">Loading usage…</span>}
-        {l?.error && <span className="muted small" title={l.error}>Plan usage unavailable — {l.error}</span>}
+        {l?.stale && <span className="muted small" title={`${l.stale} — showing the last known values`}>⚠ stale</span>}
+        {l?.error &&<span className="muted small" title={l.error}>Plan usage unavailable — {l.error}</span>}
         {l?.fiveHour && <Gauge label="Session (5h)" pct={l.fiveHour.utilization} detail={`resets in ${resetIn(l.fiveHour.resetsAt)}`} />}
         {l?.sevenDay && <Gauge label="Weekly" pct={l.sevenDay.utilization} detail={`resets in ${resetIn(l.sevenDay.resetsAt)}`} />}
         {x && <Gauge label="Extra usage" pct={x.utilization} detail={`${money(x.used)} / ${money(x.monthlyLimit)}`} />}
