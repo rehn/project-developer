@@ -35,7 +35,7 @@ FROM debian:bookworm-slim
 ARG CLAUDE_CODE_VERSION=2.1.326
 
 RUN apt-get update \
- && apt-get install -y --no-install-recommends ca-certificates curl git openssh-client python3 python3-pip python3-venv tini \
+ && apt-get install -y --no-install-recommends bubblewrap ca-certificates curl git openssh-client python3 python3-pip python3-venv tini \
  # GitHub CLI from the official apt repo
  && mkdir -p -m 755 /etc/apt/keyrings \
  && curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg -o /etc/apt/keyrings/githubcli-archive-keyring.gpg \

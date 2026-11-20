@@ -79,6 +79,11 @@ func startPTY(key, dir string, args []string, cols, rows uint16) (*session, erro
 		return nil, &httpErr{500, "Claude Code CLI not found. Install it (https://claude.com/claude-code) or set CLAUDE_BIN."}
 	}
 	args, askTok := withMCP(key, args)
+	bin, args, err := sandboxCmd(dir, bin, args, true)
+	if err != nil {
+		unregisterAsk(askTok)
+		return nil, err
+	}
 	cmd := exec.Command(bin, args...)
 	cmd.Dir = dir
 	cmd.Env = append(os.Environ(), "TERM=xterm-256color", "COLORTERM=truecolor")

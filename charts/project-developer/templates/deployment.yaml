@@ -32,6 +32,7 @@ spec:
           env:
             - { name: COOKIE_SECURE, value: {{ .Values.config.cookieSecure | quote }} }
             - { name: TRUST_PROXY, value: {{ .Values.config.trustProxy | quote }} }
+            - { name: SANDBOX, value: {{ .Values.config.sandbox | quote }} }
             {{- with (include "pd.allowedOrigins" .) }}
             - { name: ALLOWED_ORIGINS, value: {{ . | quote }} }
             {{- end }}

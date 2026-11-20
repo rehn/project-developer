@@ -17,7 +17,7 @@ First visit creates your account. Then: Settings (top right) → GitHub token �
 
 ## Config (env, backend)
 `ADDR` (127.0.0.1:3001), `DATA_DIR` (./data), `CLAUDE_BIN` (claude), `CLAUDE_CONFIG_DIR`,
-`GITHUB_API_URL` (GitHub Enterprise), `ALLOWED_ORIGINS`, `COOKIE_SECURE=true` (behind HTTPS), `TRUST_PROXY=true` (behind a gateway/reverse proxy). Frontend: `BACKEND_URL`.
+`GITHUB_API_URL` (GitHub Enterprise), `ALLOWED_ORIGINS`, `COOKIE_SECURE=true` (behind HTTPS), `TRUST_PROXY=true` (behind a gateway/reverse proxy), `SANDBOX` (`auto` default, `on`, `off`). Frontend: `BACKEND_URL`.
 
 ## Notes
 - Header gauges: plan limits (5-hour / weekly %) come live from Anthropic via your Claude Code login (undocumented endpoint, read-only, token never leaves the backend).
@@ -27,6 +27,7 @@ First visit creates your account. Then: Settings (top right) → GitHub token �
 - Settings → Kubernetes access: upload or paste a kubeconfig and `kubectl` works in every Claude session (`$KUBECONFIG` points at a file on the data volume). It works for any reachable cluster, including the one the app itself runs in; restart running sessions to pick it up.
 - Projects can ask each other questions: every Claude session gets an `ask_project` tool (and `list_projects`) that runs a one-shot, read-only Claude in the other project's checkout and returns its answer, e.g. the API consumer asking the API builder. Each session may ask `ASK_LIMIT` questions (default 10; restarting the session resets it).
 - Agents can also ask for work to be done in another project with `request_task`. Nothing runs by itself: the request shows up as a badge on that project's tab and under "Task requests" in its panel, and only when you click Approve is it typed into that project's own Claude session (a new one is started if none is running). Limit per session: `TASK_LIMIT` (default 3); at most 5 requests wait per project.
+- Each project runs in its own sandbox ([bubblewrap](https://github.com/containers/bubblewrap)): Claude sessions, the Editor shell and `ask_project` see the whole filesystem read-only, can write only to their own project's checkout and `HOME`, and can't read the app's database or encryption key. So one project's agent can't modify another's files. `SANDBOX=auto` (default) uses it when `bwrap` works and otherwise runs unsandboxed with a warning (e.g. local macOS); `SANDBOX=on` refuses to start sessions without it (the Helm chart's default); `off` disables it. In Kubernetes it needs user namespaces, so the chart sets `seccompProfile: Unconfined`. `HOME` (Claude's login and history) is shared by all projects and stays writable.
 - Binds to localhost by default — this app can edit files on your machine; put real TLS/auth in front before exposing it.
 
 ## Docker
