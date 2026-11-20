@@ -282,6 +282,10 @@ func runAsk(parent context.Context, target project, callerName, question string)
 	if target.Model != "" {
 		args = append(args, "--model", target.Model)
 	}
+	bin, args, err := sandboxCmd(target.Dir, bin, args, false) // read-only run: the checkout isn't writable
+	if err != nil {
+		return "", err
+	}
 	cmd := exec.CommandContext(ctx, bin, args...)
 	cmd.Dir = target.Dir
 	cmd.Stdin = strings.NewReader("Question from the " + callerName + " project:\n\n" + question)

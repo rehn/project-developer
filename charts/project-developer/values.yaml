@@ -26,6 +26,7 @@ persistence:
 config:
   cookieSecure: true     # set false only if you serve plain http (no TLS at the gateway)
   trustProxy: true       # use X-Forwarded-For for login throttling (behind a gateway)
+  sandbox: "on"          # on = each project's sessions can only write to their own checkout (bubblewrap); auto = fall back to no sandbox if unavailable; off
   allowedOrigins: []     # extra browser origins; httpRoute.hostnames are added automatically
   git:                   # identity for commits Claude makes in the pod
     authorName: ""
@@ -70,6 +71,9 @@ podSecurityContext:
 securityContext:
   allowPrivilegeEscalation: false
   capabilities: { drop: [ALL] }
+  # The per-project sandbox (bubblewrap) needs unprivileged user namespaces, which the runtime's
+  # default seccomp profile blocks. If you set config.sandbox to "off" you can use RuntimeDefault.
+  seccompProfile: { type: Unconfined }
 nodeSelector: {}
 tolerations: []
 affinity: {}
