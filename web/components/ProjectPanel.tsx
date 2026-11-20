@@ -19,6 +19,7 @@ type Info = {
   repo: { fullName: string; url: string; description: string | null; defaultBranch: string; private: boolean } | null;
   commit: { hash: string; url: string; message: string; author: string; date: string } | null;
   pulls: { number: number; title: string; url: string; author: string; draft: boolean; head: string; updatedAt: string }[];
+  merged: { number: number; title: string; url: string; author: string; head: string; mergedAt: string }[];
   runs: { id: number; name: string; title: string; url: string; status: string; event: string; branch: string; startedAt: string; actor: string }[];
   release: { tag: string; name: string; url: string; prerelease: boolean; publishedAt: string } | null;
   tags: { name: string; sha: string; url: string }[];
@@ -183,7 +184,7 @@ export default function ProjectPanel({ project }: { project: Project }) {
           )}
 
           <section>
-            <h4>Open pull requests {info.project.isGithub && !info.errors.pulls && <span className="tag">{info.pulls.length}</span>}</h4>
+            <h4>Pull requests {info.project.isGithub && !info.errors.pulls && <span className="tag">{info.pulls.length}</span>}</h4>
             {info.errors.pulls && <div className="error small">{info.errors.pulls}</div>}
             {!info.errors.pulls && !info.pulls.length && <div className="muted small">None</div>}
             <ul className="list tight">
@@ -198,6 +199,22 @@ export default function ProjectPanel({ project }: { project: Project }) {
               ))}
             </ul>
             {prMsg && <div className={`${prMsg.ok ? "ok" : "error"} small`}>{prMsg.text}</div>}
+
+            {info.project.isGithub && (
+              <>
+                <div className="muted small" style={{ marginTop: 8 }}>Recently merged</div>
+                {info.errors.merged && <div className="error small">{info.errors.merged}</div>}
+                {!info.errors.merged && !info.merged?.length && <div className="muted small">None</div>}
+                <ul className="list tight">
+                  {info.merged?.map((p) => (
+                    <li key={p.number}><div>
+                      <a href={p.url} target="_blank" rel="noreferrer">#{p.number} {p.title}</a> <span className="tag">merged</span>
+                      <div className="muted small">{p.author} · {p.head} · {ago(p.mergedAt)}</div>
+                    </div></li>
+                  ))}
+                </ul>
+              </>
+            )}
           </section>
 
           <section>

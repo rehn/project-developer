@@ -47,6 +47,7 @@ func handleProjectInfo(w http.ResponseWriter, r *http.Request) {
 	// ---- GitHub ----
 	var repo, commit, release map[string]any
 	pulls := []map[string]any{}
+	merged := []map[string]any{}
 	runs := []map[string]any{}
 	tags := []map[string]any{}
 	if p.Owner != "" {
@@ -102,6 +103,30 @@ func handleProjectInfo(w http.ResponseWriter, r *http.Request) {
 			for _, y := range x {
 				pulls = append(pulls, map[string]any{"number": y.Number, "title": y.Title, "url": y.HTMLURL,
 					"draft": y.Draft, "author": y.User.Login, "head": y.Head.Ref, "updatedAt": y.UpdatedAt})
+			}
+		})
+		run(func() {
+			// The three most recently merged PRs. The API can't filter on merged, so fetch the
+			// latest closed ones (newest activity first) and keep those that were merged.
+			var x []struct {
+				Number   int    `json:"number"`
+				Title    string `json:"title"`
+				HTMLURL  string `json:"html_url"`
+				MergedAt string `json:"merged_at"`
+				User     struct{ Login string }
+				Head     struct{ Ref string }
+			}
+			if e := gh(base+"/pulls?state=closed&sort=updated&direction=desc&per_page=30", &x); e != nil {
+				setErr("merged", e)
+				return
+			}
+			sort.SliceStable(x, func(i, j int) bool { return x[i].MergedAt > x[j].MergedAt })
+			for _, y := range x {
+				if y.MergedAt == "" || len(merged) == 3 {
+					continue
+				}
+				merged = append(merged, map[string]any{"number": y.Number, "title": y.Title, "url": y.HTMLURL,
+					"author": y.User.Login, "head": y.Head.Ref, "mergedAt": y.MergedAt})
 			}
 		})
 		run(func() {
@@ -178,6 +203,6 @@ func handleProjectInfo(w http.ResponseWriter, r *http.Request) {
 
 	writeJSON(w, map[string]any{
 		"project": map[string]any{"id": p.ID, "name": p.Name, "repoUrl": p.RepoURL, "isGithub": p.Owner != ""},
-		"local":   local, "repo": repo, "commit": commit, "pulls": pulls, "runs": runs, "tags": tags, "release": release, "errors": errs,
+		"local":   local, "repo": repo, "commit": commit, "pulls": pulls, "merged": merged, "runs": runs, "tags": tags, "release": release, "errors": errs,
 	})
 }
