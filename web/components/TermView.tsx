@@ -91,7 +91,7 @@ export default function TermView({ target, cont, shell, onExit }: { target: stri
           if (typeof e.data === "string") {
             try {
               const m = JSON.parse(e.data);
-              if (m.type === "exit") { ended = true; term.write(`\r\n\x1b[90m[session ended]\x1b[0m\r\n`); onExit?.(m.code); }
+              if (m.type === "exit") { ended = true; term.write(`\r\n\x1b[90m[session ended${m.reason ? `: ${m.reason} after ${m.uptime}` : ""}]\x1b[0m\r\n`); onExit?.(m.code); }
             } catch {}
           } else {
             if (first) { first = false; retry = 0; if (reconnected) term.reset(); }
