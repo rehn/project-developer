@@ -193,7 +193,7 @@ export default function ProjectPanel({ project }: { project: Project }) {
                   <a href={p.url} target="_blank" rel="noreferrer">#{p.number} {p.title}</a> {p.draft && <span className="tag">draft</span>}
                   <div className="muted small">{p.author} · {p.head} · {ago(p.updatedAt)}</div>
                 </div>
-                <button className="small-btn" onClick={() => merge(p.number, p.title)} disabled={p.draft || merging !== null}
+                <button className="small-btn merge" onClick={() => merge(p.number, p.title)} disabled={p.draft || merging !== null}
                   title={p.draft ? "Draft pull requests can't be merged" : `Merge #${p.number}`}>{merging === p.number ? "Merging…" : "Merge"}</button>
                 </li>
               ))}
