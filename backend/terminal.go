@@ -2,6 +2,8 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
+	"log"
 	"net/http"
 	"os"
 	"os/exec"
@@ -9,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/creack/pty"
@@ -50,6 +53,8 @@ type session struct {
 	buf     []byte
 	clients map[*client]bool
 	exited  bool
+	killed  bool // stopped on request (Stop button), not a crash
+	started time.Time
 }
 
 var (
@@ -99,7 +104,7 @@ func startPTY(key, dir string, args []string, cols, rows uint16) (*session, erro
 		unregisterAsk(askTok)
 		return nil, err
 	}
-	s := &session{ptmx: ptmx, cmd: cmd, clients: map[*client]bool{}}
+	s := &session{ptmx: ptmx, cmd: cmd, clients: map[*client]bool{}, started: time.Now()}
 	go func() {
 		chunk := make([]byte, 32*1024)
 		for {
@@ -119,18 +124,34 @@ func startPTY(key, dir string, args []string, cols, rows uint16) (*session, erro
 			}
 		}
 		code := 0
+		sig := ""
 		if err := cmd.Wait(); err != nil {
 			code = -1
 			if ee, ok := err.(*exec.ExitError); ok {
 				code = ee.ExitCode()
+				if ws, ok := ee.Sys().(syscall.WaitStatus); ok && ws.Signaled() {
+					sig = ws.Signal().String() // e.g. "killed" = SIGKILL, typically the OOM killer
+				}
 			}
 		}
+		s.mu.Lock()
+		killed := s.killed
+		s.mu.Unlock()
+		reason := fmt.Sprintf("exit code %d", code)
+		if sig != "" {
+			reason = "signal: " + sig
+		}
+		if killed {
+			reason = "stopped by user"
+		}
+		up := time.Since(s.started).Round(time.Second)
+		log.Printf("session %s ended: %s after %s", key, reason, up)
 		ptmx.Close()
 		unregisterAsk(askTok)
 		s.mu.Lock()
 		s.exited = true
 		s.mu.Unlock()
-		msg, _ := json.Marshal(map[string]any{"type": "exit", "code": code})
+		msg, _ := json.Marshal(map[string]any{"type": "exit", "code": code, "reason": reason, "uptime": up.String()})
 		s.broadcast(websocket.TextMessage, msg)
 		sessionsMu.Lock()
 		if sessions[key] == s {
@@ -276,6 +297,9 @@ func handleTerminalKill(w http.ResponseWriter, r *http.Request) {
 	s := sessions[key]
 	sessionsMu.Unlock()
 	if s != nil {
+		s.mu.Lock()
+		s.killed = true
+		s.mu.Unlock()
 		s.cmd.Process.Kill()
 	}
 	writeJSON(w, map[string]bool{"ok": true})
