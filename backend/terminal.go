@@ -223,15 +223,19 @@ func handleTerminalWS(w http.ResponseWriter, r *http.Request) {
 		s, err = startPTY(key, dir, args, cols, rows)
 		if err != nil {
 			sessionsMu.Unlock()
+			log.Printf("session %s failed to start: %v", key, err)
 			fail(w, err)
 			return
 		}
+		log.Printf("session %s started", key)
 		sessions[key] = s
 	}
 	sessionsMu.Unlock()
 
 	ws, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
+		// Typically a rejected Origin behind a proxy; the browser only sees a failed socket.
+		log.Printf("session %s websocket upgrade failed: %v (origin %q, host %q)", key, err, r.Header.Get("Origin"), r.Host)
 		return
 	}
 	c := &client{ws: ws}
@@ -269,6 +273,10 @@ func handleTerminalWS(w http.ResponseWriter, r *http.Request) {
 	for {
 		typ, data, err := ws.ReadMessage()
 		if err != nil {
+			// A normal tab close is not interesting; timeouts and abrupt drops explain reconnect loops.
+			if !websocket.IsCloseError(err, websocket.CloseNormalClosure, websocket.CloseGoingAway) {
+				log.Printf("session %s client disconnected: %v", key, err)
+			}
 			return
 		}
 		ws.SetReadDeadline(time.Now().Add(pongWait))
