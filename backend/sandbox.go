@@ -26,13 +26,19 @@ var (
 	sandboxErr  error
 )
 
+// No --unshare-pid: a fresh procfs can't be mounted in a container whose /proc is masked
+// ("Can't mount proc"), so bwrap shares the host PID namespace and bind-mounts /proc instead.
+var baseArgs = []string{"--die-with-parent",
+	"--ro-bind", "/", "/", "--dev", "/dev", "--proc", "/proc", "--tmpfs", "/tmp"}
+
 func sandboxProbe() {
 	p, err := exec.LookPath("bwrap")
 	if err != nil {
 		sandboxErr = errors.New("bubblewrap (bwrap) is not installed")
 		return
 	}
-	if out, err := exec.Command(p, "--ro-bind", "/", "/", "--dev", "/dev", "--proc", "/proc", "true").CombinedOutput(); err != nil {
+	// Must use the same base flags as sandboxCmd, or the probe can pass while real sessions fail.
+	if out, err := exec.Command(p, append(append([]string{}, baseArgs...), "true")...).CombinedOutput(); err != nil {
 		sandboxErr = errors.New("bubblewrap can't create a sandbox here (user namespaces blocked?): " + string(out))
 		return
 	}
@@ -55,8 +61,7 @@ func sandboxCmd(dir, bin string, args []string, writeDir bool) (string, []string
 		return bin, args, nil
 	}
 
-	a := []string{"--die-with-parent", "--unshare-pid",
-		"--ro-bind", "/", "/", "--dev", "/dev", "--proc", "/proc", "--tmpfs", "/tmp"}
+	a := append([]string{}, baseArgs...)
 	bound := map[string]bool{}
 	bind := func(flag, p string) {
 		if p == "" || bound[p] {
