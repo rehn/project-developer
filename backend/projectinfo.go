@@ -130,8 +130,7 @@ func handleProjectInfo(w http.ResponseWriter, r *http.Request) {
 			}
 		})
 		run(func() {
-			// GitHub Actions runs that haven't finished yet (queued, waiting, in_progress, …).
-			// One call for the newest runs, filtered here, instead of one call per status.
+			// Newest GitHub Actions runs of any status (queued, in_progress, completed, …).
 			var x struct {
 				WorkflowRuns []struct {
 					ID           int64  `json:"id"`
@@ -139,6 +138,8 @@ func handleProjectInfo(w http.ResponseWriter, r *http.Request) {
 					DisplayTitle string `json:"display_title"`
 					HTMLURL      string `json:"html_url"`
 					Status       string `json:"status"`
+					Conclusion   string `json:"conclusion"`
+					UpdatedAt    string `json:"updated_at"`
 					Event        string `json:"event"`
 					HeadBranch   string `json:"head_branch"`
 					RunStartedAt string `json:"run_started_at"`
@@ -150,11 +151,12 @@ func handleProjectInfo(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			for _, y := range x.WorkflowRuns {
-				if y.Status != "completed" {
-					runs = append(runs, map[string]any{"id": y.ID, "name": y.Name, "title": y.DisplayTitle,
-						"url": y.HTMLURL, "status": y.Status, "event": y.Event, "branch": y.HeadBranch,
-						"startedAt": y.RunStartedAt, "actor": y.Actor.Login})
+				if len(runs) == 8 {
+					break
 				}
+				runs = append(runs, map[string]any{"id": y.ID, "name": y.Name, "title": y.DisplayTitle,
+					"url": y.HTMLURL, "status": y.Status, "conclusion": y.Conclusion, "event": y.Event,
+					"branch": y.HeadBranch, "startedAt": y.RunStartedAt, "updatedAt": y.UpdatedAt, "actor": y.Actor.Login})
 			}
 		})
 		run(func() {

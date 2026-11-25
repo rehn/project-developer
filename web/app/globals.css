@@ -51,9 +51,13 @@ main:has(.project-view) { max-width:none; }
 .panel h3 { margin:0; } .panel h4 { margin:0 0 6px; font-size:12px; text-transform:uppercase; letter-spacing:.04em; color:var(--muted); }
 .kv { display:flex; justify-content:space-between; gap:8px; align-items:center; margin-bottom:4px; }
 .tag.warn { color:#d29922; border-color:#d29922; }
+.tag.fail { color:#f85149; border-color:#f85149; }
 .list.tight li { padding:6px 0; } .list.tight { margin:0; }
 .run { display:flex; gap:8px; align-items:flex-start; }
 .run-dot { width:8px; height:8px; border-radius:50%; margin-top:7px; flex-shrink:0; background:#d29922; }
+.run-dot.failure { background:#f85149; }
+.run-dot.success { background:#3fb950; }
+.run-dot.cancelled, .run-dot.skipped { background:#8b949e; }
 .run-dot.in_progress { animation:pulse 1.2s ease-in-out infinite; }
 @keyframes pulse { 50% { opacity:.3; } }
 @media (max-width:1100px) { .project-view { grid-template-columns:1fr; grid-template-rows:none; height:auto; } .project-view > .term { height:70vh; } }
