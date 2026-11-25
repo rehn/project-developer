@@ -20,7 +20,7 @@ type Info = {
   commit: { hash: string; url: string; message: string; author: string; date: string } | null;
   pulls: { number: number; title: string; url: string; author: string; draft: boolean; head: string; updatedAt: string }[];
   merged: { number: number; title: string; url: string; author: string; head: string; mergedAt: string }[];
-  runs: { id: number; name: string; title: string; url: string; status: string; event: string; branch: string; startedAt: string; actor: string }[];
+  runs: { id: number; name: string; title: string; url: string; status: string; conclusion: string; updatedAt: string; event: string; branch: string; startedAt: string; actor: string }[];
   release: { tag: string; name: string; url: string; prerelease: boolean; publishedAt: string } | null;
   tags: { name: string; sha: string; url: string }[];
   errors: Record<string, string>;
@@ -62,8 +62,8 @@ export default function ProjectPanel({ project }: { project: Project }) {
     load();
   }, [load]);
 
-  // Poll faster while workflow runs are active so they disappear soon after finishing.
-  const active = !!info?.runs?.length;
+  // Poll faster while workflow runs are active so their status updates soon after finishing.
+  const active = !!info?.runs?.some((r) => r.status !== "completed");
   useEffect(() => {
     const t = setInterval(load, active ? 15_000 : 60_000);
     return () => clearInterval(t);
@@ -165,20 +165,23 @@ export default function ProjectPanel({ project }: { project: Project }) {
 
           {info.project.isGithub && (
             <section>
-              <h4>Running actions {!info.errors.runs && <span className="tag">{info.runs?.length ?? 0}</span>}</h4>
+              <h4>Actions</h4>
               {info.errors.runs && <div className="error small">{info.errors.runs}</div>}
-              {!info.errors.runs && !info.runs?.length && <div className="muted small">Nothing running</div>}
+              {!info.errors.runs && !info.runs?.length && <div className="muted small">No runs</div>}
               <ul className="list tight">
-                {info.runs?.map((r) => (
-                  <li key={r.id}><div className="run">
-                    <span className={`run-dot ${r.status}`} title={r.status.replace("_", " ")} />
-                    <div>
-                      <a href={r.url} target="_blank" rel="noreferrer">{r.name}</a> {r.status !== "in_progress" && <span className="tag warn">{r.status.replace("_", " ")}</span>}
-                      <div className="muted small">{r.title}</div>
-                      <div className="muted small">{r.branch} · {r.event} · {r.actor}{r.startedAt && ` · ${ago(r.startedAt)}`}</div>
-                    </div>
-                  </div></li>
-                ))}
+                {info.runs?.map((r) => {
+                  const state = r.status === "completed" ? (r.conclusion || "completed") : r.status;
+                  return (
+                    <li key={r.id}><div className="run">
+                      <span className={`run-dot ${state}`} title={state.replace("_", " ")} />
+                      <div>
+                        <a href={r.url} target="_blank" rel="noreferrer">{r.name}</a> {state !== "success" && <span className={`tag${state === "failure" ? " fail" : state === "in_progress" || state === "queued" ? " warn" : ""}`}>{state.replace("_", " ")}</span>}
+                        <div className="muted small">{r.title}</div>
+                        <div className="muted small">{r.branch} · {r.event} · {r.actor} · {ago(r.status === "completed" ? r.updatedAt : r.startedAt)}</div>
+                      </div>
+                    </div></li>
+                  );
+                })}
               </ul>
             </section>
           )}
