@@ -65,6 +65,7 @@ func main() {
 	priv.HandleFunc("GET /api/projects/{id}/files", handleListFiles)
 	priv.HandleFunc("GET /api/projects/{id}/file", handleReadFile)
 	priv.HandleFunc("PUT /api/projects/{id}/file", handleWriteFile)
+	priv.HandleFunc("POST /api/projects/{id}/upload", handleProjectUpload)
 	priv.HandleFunc("POST /api/projects/{id}/pulls/{number}/merge", handleMergePull)
 	priv.HandleFunc("POST /api/projects/{id}/tags", handleCreateTag)
 	priv.HandleFunc("GET /api/usage/limits", handleLimits)
