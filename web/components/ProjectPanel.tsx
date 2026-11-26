@@ -1,5 +1,5 @@
 "use client";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { api, type Project } from "@/lib/api";
 import { useTasks } from "@/lib/useTasks";
 
@@ -108,6 +108,27 @@ export default function ProjectPanel({ project }: { project: Project }) {
     finally { setTagging(false); }
   }
 
+  const filePicker = useRef<HTMLInputElement>(null);
+  const folderPicker = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+  const [upMsg, setUpMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  useEffect(() => { setUpMsg(null); }, [project.id]);
+
+  // Folder structure travels in the form field name: multipart filenames lose their directories server-side.
+  async function upload(files: File[]) {
+    if (!files.length) return;
+    setUploading(true); setUpMsg(null);
+    try {
+      const fd = new FormData();
+      for (const f of files) fd.append(encodeURIComponent(f.webkitRelativePath || f.name), f);
+      const res = await fetch(`/api/projects/${project.id}/upload`, { method: "POST", body: fd });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error ?? `Upload failed (${res.status})`);
+      setUpMsg({ ok: true, text: `Uploaded ${data.count} file${data.count === 1 ? "" : "s"} to ${data.dir}/` });
+    } catch (e: any) { setUpMsg({ ok: false, text: e.message }); }
+    finally { setUploading(false); }
+  }
+
   const behind = info?.local.hash && info.commit && info.local.hash !== info.commit.hash
     && info.local.branch === info.repo?.defaultBranch;
 
@@ -185,6 +206,21 @@ export default function ProjectPanel({ project }: { project: Project }) {
               </ul>
             </section>
           )}
+
+          <section>
+            <h4>Upload</h4>
+            <div className="muted small">Files and folders go to <code>.uploaded/</code> in the project (created if missing).</div>
+            <div className="row" style={{ marginTop: 6 }}>
+              <button onClick={() => filePicker.current?.click()} disabled={uploading}>Files…</button>
+              <button onClick={() => folderPicker.current?.click()} disabled={uploading}>Folder…</button>
+              {uploading && <span className="muted small">Uploading…</span>}
+            </div>
+            <input ref={filePicker} type="file" multiple hidden
+              onChange={(e) => { upload(Array.from(e.target.files ?? [])); e.target.value = ""; }} />
+            <input ref={folderPicker} type="file" hidden {...{ webkitdirectory: "" }}
+              onChange={(e) => { upload(Array.from(e.target.files ?? [])); e.target.value = ""; }} />
+            {upMsg && <div className={`${upMsg.ok ? "ok" : "error"} small`}>{upMsg.text}</div>}
+          </section>
 
           <section>
             <h4>Pull requests {info.project.isGithub && !info.errors.pulls && <span className="tag">{info.pulls.length}</span>}</h4>
