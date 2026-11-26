@@ -6,6 +6,7 @@ import { useProjects } from "@/lib/ProjectContext";
 import ClaudeGate, { type Auth } from "@/components/ClaudeGate";
 import TermView from "@/components/TermView";
 import ProjectPanel from "@/components/ProjectPanel";
+import UploadButtons from "@/components/UploadButtons";
 import EditorView from "@/components/EditorView";
 
 export default function Terminal() {
@@ -39,6 +40,7 @@ function ProjectTerminal({ auth }: { auth: Auth }) {
         <div className="row between">
           <h2>{mode === "claude" ? "Claude" : "Editor"} — {selected.name} {mode === "claude" && running && <span className="tag">session running</span>}</h2>
           <div className="row">
+            <UploadButtons project={selected} />
             <div className="mode-switch" role="tablist" aria-label="View">
               <button role="tab" aria-selected={mode === "claude"} className={mode === "claude" ? "on" : ""} onClick={() => setMode("claude")}>Claude</button>
               <button role="tab" aria-selected={mode === "editor"} className={mode === "editor" ? "on" : ""} onClick={() => setMode("editor")}>Editor</button>
