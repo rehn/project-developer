@@ -63,6 +63,15 @@ var (
 	upgrader   = websocket.Upgrader{ReadBufferSize: 4096, WriteBufferSize: 4096, CheckOrigin: allowedOrigin}
 )
 
+// maxSessions caps concurrent sessions; each is a Node process plus whatever tests it runs,
+// all sharing the pod's memory limit.
+func maxSessions() int {
+	if n, err := strconv.Atoi(env("MAX_SESSIONS", "")); err == nil && n > 0 {
+		return n
+	}
+	return 6
+}
+
 func (s *session) broadcast(typ int, b []byte) {
 	s.mu.Lock()
 	cs := make([]*client, 0, len(s.clients))
@@ -89,6 +98,13 @@ func startPTY(key, dir string, args []string, cols, rows uint16) (*session, erro
 		unregisterAsk(askTok)
 		return nil, err
 	}
+	// Make the session (and the tests it runs) the OOM killer's preferred victim, so memory
+	// pressure kills a session instead of the app and every other project's session with it.
+	// Raising the score is allowed unprivileged and is inherited by all children; done in the
+	// shell before exec so there's no window where the session runs with the default score.
+	// Silently a no-op where /proc/self/oom_score_adj isn't writable (e.g. macOS).
+	args = append([]string{"-c", `echo 1000 > /proc/self/oom_score_adj 2>/dev/null; exec "$@"`, "sh", bin}, args...)
+	bin = "/bin/sh"
 	cmd := exec.Command(bin, args...)
 	cmd.Dir = dir
 	cmd.Env = append(os.Environ(), "TERM=xterm-256color", "COLORTERM=truecolor")
@@ -219,6 +235,12 @@ func handleTerminalWS(w http.ResponseWriter, r *http.Request) {
 
 	sessionsMu.Lock()
 	s := sessions[key]
+	if s == nil && key != "login" && len(sessions) >= maxSessions() {
+		sessionsMu.Unlock()
+		fail(w, &httpErr{http.StatusServiceUnavailable, fmt.Sprintf(
+			"Too many running sessions (limit %d, set MAX_SESSIONS). Stop one first.", maxSessions())})
+		return
+	}
 	if s == nil {
 		s, err = startPTY(key, dir, args, cols, rows)
 		if err != nil {
